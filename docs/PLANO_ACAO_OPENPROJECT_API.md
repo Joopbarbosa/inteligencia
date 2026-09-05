@@ -123,7 +123,19 @@ Razões:
 
 ## 6. Registro como MCP server no Claude Code
 
-Mesmo padrão dos MCPs já configurados (ClickUp, Google Drive): `claude mcp add openproject-api <python> <script> -e OPENPROJECT_URL=... -e OPENPROJECT_API_KEY=...` (ou configuração manual equivalente).
+**Feito em 05/09/2026**, mesmo padrão dos MCPs já configurados (ClickUp, Google Drive):
+
+```
+claude mcp add openproject-api -s user \
+  -e OPENPROJECT_URL=http://localhost:8090 \
+  -e OPENPROJECT_API_KEY=<token> \
+  -e LOG_LEVEL=INFO \
+  -- /home/joaobarbosa/.local/bin/uv run --directory /home/joaobarbosa/Documentos/Projetos/inteligencia/openproject-api python openproject-mcp-fastmcp.py
+```
+
+Escopo `user` (disponível em qualquer projeto/sessão do Claude Code, não só dentro de `inteligencia/openproject-api`). Status confirmado via `claude mcp get openproject-api`: `√ Connected`. Tools expostas nesta sessão em diante: `test_connection`, `check_permissions`, `list_types`, `list_statuses`, `list_priorities`, `get_work_package`, `create_work_package`, `update_work_package`, `list_versions`, `create_version`.
+
+**Nota**: o registro habilita as tools para qualquer sessão do Claude Code chamar diretamente — não depende de nenhuma skill ser reescrita. A atualização das skills (item 25 do `PLANO_ACAO_MIGRACAO.md`) é sobre fazer as skills *automaticamente* chamarem essas tools como parte do fluxo delas, em vez de descrever "gere CSV" em prosa — mas o uso ad-hoc ("crie uma tarefa X no OpenProject") já funciona desde já.
 
 ## 7. Plano de validação antes de confiar
 

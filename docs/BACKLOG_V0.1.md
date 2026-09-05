@@ -130,7 +130,8 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
 
 - **Descoberta dinâmica de custom fields** (substituir o YAML estático por `GET /api/v3/custom_options`): melhoria futura registrada no P1, não faz parte do V0.1.
 - **Tools do fork não usadas** (gestão de projetos, membros, roles, time entries, relações de hierarquia, filtros avançados): existem no fork mas nenhuma skill deve chamá-las sem uma validação dedicada própria — fora do escopo deste pocket.
-- **Registro do MCP no Claude Code** (`claude mcp add ...`) e **atualização das 7 skills** para chamarem as tools novas em vez de CSV manual: dependem de P1-P5 estarem todos validados; ficam para o próximo pocket (correspondem às Seções 6 e ao item 25 replanejado do `PLANO_ACAO_MIGRACAO.md`).
+- ~~**Registro do MCP no Claude Code**~~ — **feito em 05/09/2026**, fora de ordem (antes do P5), a pedido de João: `claude mcp add openproject-api -s user ...`, escopo `user` (disponível em qualquer projeto/sessão), status `√ Connected` confirmado (`claude mcp get openproject-api`). Ver Seção 6 do `PLANO_ACAO_OPENPROJECT_API.md`.
+- **Atualização das 7 skills** para chamarem as tools novas em vez de CSV manual: ainda não feita — depende de P5 (consolidação do Script OP) e é trabalho de edição de prompt, não de código. Fica para quando João reescrever as skills (corresponde ao item 25 replanejado do `PLANO_ACAO_MIGRACAO.md`).
 
 ---
 
