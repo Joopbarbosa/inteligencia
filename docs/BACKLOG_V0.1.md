@@ -19,7 +19,7 @@
 **Data:** 05/09/2026
 **Sessão:** Backend do P1 + validação de integração real contra a instância OpenProject
 **O que foi feito:** `src/custom_fields.py` + `config/custom_fields_map.yaml` portados do Script OP, campo `sistema` adicionado em `CreateWorkPackageInput`/`UpdateWorkPackageInput`, merge no payload em `client.py`. Testes unitários 7/7 verdes. Validação de integração real feita: token do Script OP estava expirado (401 confirmado via curl cru, independente do nosso código) — João gerou token novo; projeto `Pense & Precifique` estava com todos os tipos de WP desabilitados (config pré-existente, não bug) — João habilitou "Task". Work package **#397** criado com sucesso com `customField1` = "BackEnd", confirmado via `GET`. Achado técnico registrado: `POST /work_packages/form` é leniente sobre `type` permitido por projeto, só o `POST /work_packages` final valida de verdade — vale para P2/P3/P4 também. Dado de teste registrado em `docs/DADOS_DE_TESTE.md` para exclusão ao final do pocket.
-**Próximo passo:** P3 — validar `update_work_package` para campos gerais (subject, description, priority, assignee, etc.), reaproveitando o mesmo work package #397. Decisão de remote no GitHub para este repo continua em aberto (fica pra depois, por pedido do João).
+**Próximo passo:** P4 — corrigir/validar `create_version` (bug `due_date`/`end_date` já corrigido no código, falta validar contra instância real). Decisão de remote no GitHub para este repo continua em aberto (fica pra depois, por pedido do João).
 **Estado do git:** `inteligencia/openproject-api/` é repositório git próprio, branch `main`, 3 commits (`4802e53`, `4ae51ad`, `8e3d4f7` + este handoff ainda não commitado). Sem remote configurado. `.env` local tem token real válido (gerado por João em 05/09/2026), gitignored.
 
 ---
@@ -30,7 +30,7 @@
 |---|--------|-----------|---------|---------|-------|
 | P1 | Fork + custom fields em criar/editar tarefa | Alta | ✅ | ✅ | ✅ |
 | P2 | Validar mudar status (`lockVersion` já tratado no fork) | Alta | ✅ | ✅ | ✅ |
-| P3 | Editar tarefas (campos gerais) | Normal | ⬜ | ⬜ | ⬜ |
+| P3 | Editar tarefas (campos gerais) | Normal | ✅ | ✅ | ✅ |
 | P4 | Criar versões + corrigir bug `due_date`/`end_date` | Normal | ✅ | ⬜ | ⬜ |
 | P5 | Consolidar Script OP (import CSV em lote) | Normal | ⬜ | ⬜ | ⬜ |
 
@@ -80,11 +80,14 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
 ### P3 — Editar tarefas (campos gerais)
 
 **Gravidade:** Normal
-*Contexto relatado:* `update_work_package` do fork hoje aceita `subject`, `description`, `type_id`, `status_id`, `priority_id`, `assignee_id`, `percentage_done` — falta confirmar se cobre o necessário.
+*Contexto relatado:* `update_work_package` do fork hoje aceita `subject`, `description`, `type_id`, `status_id`, `priority_id`, `assignee_id`, `percentage_done`.
 
-- [ ] **Análise:** listar quais campos de edição são realmente necessários no dia a dia (ex.: mudar versão de uma tarefa?) e comparar com o que o fork já aceita
-- [ ] **Backend:** se faltar campo, estender `update_work_package` (reaproveitando o tratamento de `lockVersion` do P2); custom fields na edição já resolvidos pelo P1
-- [ ] **Teste:** editar 1 work package de teste em pelo menos 2 campos diferentes (ex.: `subject` + `priority_id`) numa única chamada, confirmar via `GET`
+- [x] **Análise:** campos já cobertos (`subject`, `description`, `type_id`, `status_id`, `priority_id`, `assignee_id`, `version_id`, `percentage_done`, `sistema` desde o P1) atendem o necessário — não foi preciso adicionar campo novo.
+- [x] **Backend:** nenhum código novo necessário.
+- [x] **Teste:** feito em 05/09/2026 contra a instância real, reaproveitando o work package #397:
+  - `subject` + `priority_id` numa única chamada: sucesso, confirmado via `GET` separado.
+  - Custom field do P1 (`sistema=BackEnd`) **não foi perdido** por uma edição que não o tocou — confirmado explicitamente.
+  - **Achado real (não bug)**: `percentage_done` foi rejeitado com `422 PropertyIsReadOnly` ("% de conclusão tentou escrever, mas não é gravável") — essa instância calcula `percentageDone` automaticamente (modo de progresso não-manual) para o tipo "Task", não aceita escrita direta. Campo continua exposto em `UpdateWorkPackageInput` (pode ser gravável em outros tipos/instâncias com modo manual), documentado aqui como conhecido-instável.
 
 ---
 

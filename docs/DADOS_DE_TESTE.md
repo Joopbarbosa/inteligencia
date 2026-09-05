@@ -6,6 +6,7 @@
 |---|---|---|---|---|---|
 | 05/09/2026 | Work package (teste de custom field, P1) | **#397** | Pense & Precifique (id=6) | script de validação manual (`validar_p1.py`, fora do repo) | ⬜ pendente de apagar |
 | 05/09/2026 | Mesmo #397, status alterado para "Prioridade" (teste de mudança de status, P2) | #397 | Pense & Precifique (id=6) | script de validação manual (`validar_p2.py`, fora do repo) | — (mesma linha acima, só mudou de estado) |
+| 05/09/2026 | Mesmo #397, subject/prioridade alterados (teste de edição, P3) | #397 | Pense & Precifique (id=6) | script de validação manual (`validar_p3.py`, fora do repo) | — (mesma linha acima, só mudou de estado) |
 
 ## Como apagar
 
