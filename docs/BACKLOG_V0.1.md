@@ -19,7 +19,7 @@
 **Data:** 05/09/2026
 **Sessão:** Backend do P1 + validação de integração real contra a instância OpenProject
 **O que foi feito:** `src/custom_fields.py` + `config/custom_fields_map.yaml` portados do Script OP, campo `sistema` adicionado em `CreateWorkPackageInput`/`UpdateWorkPackageInput`, merge no payload em `client.py`. Testes unitários 7/7 verdes. Validação de integração real feita: token do Script OP estava expirado (401 confirmado via curl cru, independente do nosso código) — João gerou token novo; projeto `Pense & Precifique` estava com todos os tipos de WP desabilitados (config pré-existente, não bug) — João habilitou "Task". Work package **#397** criado com sucesso com `customField1` = "BackEnd", confirmado via `GET`. Achado técnico registrado: `POST /work_packages/form` é leniente sobre `type` permitido por projeto, só o `POST /work_packages` final valida de verdade — vale para P2/P3/P4 também. Dado de teste registrado em `docs/DADOS_DE_TESTE.md` para exclusão ao final do pocket.
-**Próximo passo:** P2 — validar `update_work_package(status_id=...)` contra a instância real (mesma ressalva do form leniente se aplica: testar a chamada real, não confiar só no form/schema). Decisão de remote no GitHub para este repo continua em aberto (fica pra depois, por pedido do João).
+**Próximo passo:** P3 — validar `update_work_package` para campos gerais (subject, description, priority, assignee, etc.), reaproveitando o mesmo work package #397. Decisão de remote no GitHub para este repo continua em aberto (fica pra depois, por pedido do João).
 **Estado do git:** `inteligencia/openproject-api/` é repositório git próprio, branch `main`, 3 commits (`4802e53`, `4ae51ad`, `8e3d4f7` + este handoff ainda não commitado). Sem remote configurado. `.env` local tem token real válido (gerado por João em 05/09/2026), gitignored.
 
 ---
@@ -29,7 +29,7 @@
 | # | Tarefa | Gravidade | Análise | Backend | Teste |
 |---|--------|-----------|---------|---------|-------|
 | P1 | Fork + custom fields em criar/editar tarefa | Alta | ✅ | ✅ | ✅ |
-| P2 | Validar mudar status (`lockVersion` já tratado no fork) | Alta | ✅ | ⬜ | ⬜ |
+| P2 | Validar mudar status (`lockVersion` já tratado no fork) | Alta | ✅ | ✅ | ✅ |
 | P3 | Editar tarefas (campos gerais) | Normal | ⬜ | ⬜ | ⬜ |
 | P4 | Criar versões + corrigir bug `due_date`/`end_date` | Normal | ✅ | ⬜ | ⬜ |
 | P5 | Consolidar Script OP (import CSV em lote) | Normal | ⬜ | ⬜ | ⬜ |
@@ -70,8 +70,10 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
 *Contexto relatado:* `update_work_package(status_id=...)` já existe no fork. Escopo reduzido pela investigação do P1.
 
 - [x] **Análise:** confirmado em `investigacao/INVESTIGACAO_V0.1_P001.md` — `src/client.py:446` (`update_work_package`) já faz `GET` do work package e lê `lockVersion` antes do `PATCH` (linha 449). **Não há gap a implementar aqui**, só validar contra a instância real.
-- [ ] **Backend:** nenhum código novo esperado — só rodar e confirmar. Se algum caso de borda falhar (ex.: status transition não permitida pelo workflow do OpenProject), documentar o erro retornado.
-- [ ] **Teste:** mudar o status de 1 work package de teste (pós-P1, mesmo ambiente) e confirmar via `GET` que o novo status foi aplicado; testar também o caso de `lockVersion` desatualizado (deve falhar com erro claro, não silenciosamente)
+- [x] **Backend:** confirmado — nenhum código novo foi necessário, o comportamento herdado já está correto.
+- [x] **Teste:** feito em 05/09/2026, contra a instância real, reaproveitando o work package #397 (`docs/DADOS_DE_TESTE.md`):
+  - Mudança de status `BackLog` → `Prioridade` (id=5): sucesso, `lockVersion` incrementado corretamente (1 → 2), confirmado via `GET` separado.
+  - `lockVersion` desatualizado (`PATCH` com valor antigo): rejeitado com `409 UpdateConflict` — comportamento correto, sem corrupção silenciosa.
 
 ---
 
