@@ -16,11 +16,11 @@
 
 ## Último Handoff
 
-**Data:** 04/09/2026
-**Sessão:** Análise (skill `/analise`, adaptada para pocket greenfield — investigação executada nesta mesma sessão)
-**O que foi feito:** Clonado (read-only, em `/tmp`, fora do projeto) o `openproject-mcp-server` real e lido o código-fonte completo de `client.py`/`work_packages.py`/`versions.py`. Achados registrados em `investigacao/INVESTIGACAO_V0.1_P001.md`: (1) `lockVersion` já tratado em `update_work_package` — reduz escopo de P2/P3; (2) bug real em `create_version` (`due_date`/`end_date` incompatíveis) — vira correção dentro de P4; (3) confirmado gap real de custom fields em P1 (zero código relacionado no fork). Análise de P1, P2 e P4 preenchida no backlog.
-**Próximo passo:** Fazer o fork de fato (`git clone` para dentro de `inteligencia/openproject-api/`, não mais em `/tmp`) e implementar o Backend de P1 (custom fields) — P2 e P3 ficam mais simples do que o previsto, P4 ganhou a correção do bug.
-**Estado do git:** `inteligencia/openproject-api/` ainda não é um repositório git — só tem `docs/`. O clone de investigação foi feito em `/tmp` (scratchpad da sessão), não faz parte do projeto.
+**Data:** 05/09/2026
+**Sessão:** Estrutura (skill `/estrutura`) + execução do P-000 (vendoring real)
+**O que foi feito:** Gerados `ARCHITECTURE.md`, `CLAUDE.md` e `P-000_SETUP.md`; docs reorganizados em `prompt/`, `investigacao/`, `estrutura/`. P-000 executado de ponta a ponta: vendoring seletivo do `openproject-mcp-server` (só `server.py`, `client.py`, `tools/{connection,work_packages,versions}.py`, `utils/formatting.py`), trim de todo código não usado, bug `due_date`/`end_date` do P4 **já corrigido** em `client.py` e `versions.py`, tool nova `get_work_package` adicionada, `.env.example`/`.gitignore`/`ATTRIBUTION.md`/`README.md` criados, `uv` instalado e `uv sync` rodado com sucesso, smoke test do entrypoint confirmado (sobe limpo com `.env` ausente e com valores fictícios), git inicializado e commit inicial feito (`main`, `4802e53`).
+**Próximo passo:** (1) decidir com o João se este repo ganha remote no GitHub; (2) Backend do P1 — implementar `src/custom_fields.py` + `config/custom_fields_map.yaml` (portar do Script OP) e conectar no payload de `create_work_package`/`update_work_package`; (3) validar P1-P4 contra a instância real do OpenProject (`.env` com token real).
+**Estado do git:** `inteligencia/openproject-api/` é repositório git próprio, branch `main`, 1 commit (`4802e53`), working tree limpo. Sem remote configurado ainda.
 
 ---
 
@@ -28,7 +28,7 @@
 
 | # | Tarefa | Gravidade | Análise | Backend | Teste |
 |---|--------|-----------|---------|---------|-------|
-| P1 | Fork + custom fields em criar/editar tarefa | Alta | ✅ | ⬜ | ⬜ |
+| P1 | Fork + custom fields em criar/editar tarefa | Alta | ✅ | ✅ | 🟡 |
 | P2 | Validar mudar status (`lockVersion` já tratado no fork) | Alta | ✅ | ⬜ | ⬜ |
 | P3 | Editar tarefas (campos gerais) | Normal | ⬜ | ⬜ | ⬜ |
 | P4 | Criar versões + corrigir bug `due_date`/`end_date` | Normal | ✅ | ⬜ | ⬜ |
@@ -49,13 +49,14 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
 *Contexto relatado:* O fork ainda não existe. É a prioridade #1 de João (criar tarefa com os customfields corretos) e o gap real do MCP de terceiros — ele não documenta suporte a custom fields, e é exatamente o que o Script OP já resolve.
 
 - [x] **Análise:** feita em `investigacao/INVESTIGACAO_V0.1_P001.md` (clone real do fork, leitura de código). Causa raiz do gap: `create_work_package` (`src/client.py:225-288`) e `update_work_package` (`src/client.py:434-508`) nunca tratam custom fields — zero menção no código (só falsos positivos em `weekly_reports.py`). Estrutura real difere do assumido: FastMCP + Pydantic (`src/tools/work_packages.py:17-45`, modelos `CreateWorkPackageInput`/`UpdateWorkPackageInput`) + `aiohttp` async, não a estrutura flat assumida antes. `create_work_package` usa padrão form-based (`POST /work_packages/form` → enriquece → `POST /work_packages`) — decisão de implementação: confirmar empiricamente se o form já retorna slots de custom field antes de decidir entre sobrescrever `payload["_links"]` do form ou montar do zero como o Script OP faz.
-- [ ] **Backend:**
-  - Fazer fork/clone de `github.com/AndyEverything/openproject-mcp-server` para dentro de `inteligencia/openproject-api/`
-  - Adicionar campo `custom_fields: Optional[dict]` em `CreateWorkPackageInput`/`UpdateWorkPackageInput` (`src/tools/work_packages.py:17-45`)
-  - Portar `custom_fields.py` (`resolve_href`, `resolve_custom_fields`) e `config/custom_fields_map.yaml` do Script OP (`Infraestrutura/Script OP/src/script_op/custom_fields.py` e `config/custom_fields_map.yaml`)
-  - Expor no payload de `create_work_package`/`update_work_package` (`src/client.py`) como `customFieldN: {href: "/api/v3/custom_options/N"}`
-  - Configurar `.env`/`.env.example` (`OPENPROJECT_URL`, `OPENPROJECT_API_KEY`) — ver Seção 5 do plano
-- [ ] **Teste:** criar 1 work package real de teste com pelo menos um custom field (ex.: Sistema), confirmar via `GET` que o valor foi de fato aplicado
+- [x] **Backend:** feito em 05/09/2026.
+  - Fork/vendoring de `github.com/AndyEverything/openproject-mcp-server` executado via `docs/prompt/P-000_SETUP.md`
+  - Portado `src/custom_fields.py` (`resolve_href`, `resolve_custom_fields`) e `config/custom_fields_map.yaml`, a partir do Script OP (`Infraestrutura/Script OP/src/script_op/custom_fields.py`) — assinatura adaptada para keyword arg (`sistema=`) em vez de posicional, documentado em `docs/estrutura/CONTRATO_TOOLS.md`
+  - Campo `sistema: Optional[str]` adicionado em `CreateWorkPackageInput`/`UpdateWorkPackageInput` (`src/tools/work_packages.py`) — decisão de campo nomeado em vez de dict genérico, registrada em `docs/estrutura/CONTRATO_TOOLS.md`
+  - `src/client.py::create_work_package`/`update_work_package` mesclam `data["custom_fields"]` em `payload["_links"]`
+  - `.env`/`.env.example` já configurados desde o P-000
+- [x] **Teste (unitário):** `tests/test_custom_fields.py` — 7 testes, 100% verde (`uv run pytest`), cobrindo resolução correta (`"BackEnd"` → `/api/v3/custom_options/2`), erro claro para valor/categoria inválidos, e `resolve_custom_fields` sem `sistema` retornando vazio (comportamento pré-P1 preservado)
+- [ ] **Teste (integração, pendente):** criar 1 work package real de teste com custom field Sistema contra a instância real do OpenProject e confirmar via `GET` que o valor foi de fato aplicado — **requer autorização explícita antes de rodar** (cria dado real na instância)
 
 *(Melhoria futura, não bloqueante: trocar o mapa estático YAML por descoberta dinâmica via `GET /api/v3/custom_options` — registrar como item futuro, não fazer agora.)*
 

@@ -72,11 +72,11 @@ Não fazer neste P-000 — fica para depois da validação, para não expor tool
 
 ## Checklist de saída deste P-000
 
-- [ ] Vendoring feito, clone temporário removido
-- [ ] Arquivos trimados conforme Passo 3
-- [ ] Bug `due_date`/`end_date` corrigido em `versions.py`
-- [ ] `.env.example`, `.gitignore`, `ATTRIBUTION.md` criados
-- [ ] `uv sync` rodou sem erro
-- [ ] Smoke test do entrypoint rodou (com `.env` real preenchido)
-- [ ] Git inicializado e commit inicial feito
-- [ ] Decisão sobre remoto no GitHub tomada com o João (não presumida)
+- [x] Vendoring feito, clone temporário removido
+- [x] Arquivos trimados conforme Passo 3
+- [x] Bug `due_date`/`end_date` corrigido em `versions.py` (e em `client.py::create_version`)
+- [x] `.env.example`, `.gitignore`, `ATTRIBUTION.md` criados (+ `README.md`, exigido pelo `pyproject.toml`)
+- [x] `uv sync` rodou sem erro (`uv` instalado via installer oficial, não estava presente)
+- [x] Smoke test do entrypoint rodou — com `.env` ausente falha limpo (`ValueError` esperado); com valores fictícios, sobe completo (`✅ Tool modules loaded successfully`, FastMCP stdio "openproject-api" no ar). Não testado contra a API real ainda (sem token real usado nesta sessão).
+- [x] Git inicializado e commit inicial feito (`main`, commit `4802e53`)
+- [ ] Decisão sobre remoto no GitHub tomada com o João — **ainda pendente, aguardando resposta**
