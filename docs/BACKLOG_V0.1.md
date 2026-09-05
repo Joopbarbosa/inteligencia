@@ -17,10 +17,10 @@
 ## Último Handoff
 
 **Data:** 05/09/2026
-**Sessão:** Estrutura (skill `/estrutura`) + execução do P-000 (vendoring real)
-**O que foi feito:** Gerados `ARCHITECTURE.md`, `CLAUDE.md` e `P-000_SETUP.md`; docs reorganizados em `prompt/`, `investigacao/`, `estrutura/`. P-000 executado de ponta a ponta: vendoring seletivo do `openproject-mcp-server` (só `server.py`, `client.py`, `tools/{connection,work_packages,versions}.py`, `utils/formatting.py`), trim de todo código não usado, bug `due_date`/`end_date` do P4 **já corrigido** em `client.py` e `versions.py`, tool nova `get_work_package` adicionada, `.env.example`/`.gitignore`/`ATTRIBUTION.md`/`README.md` criados, `uv` instalado e `uv sync` rodado com sucesso, smoke test do entrypoint confirmado (sobe limpo com `.env` ausente e com valores fictícios), git inicializado e commit inicial feito (`main`, `4802e53`).
-**Próximo passo:** (1) decidir com o João se este repo ganha remote no GitHub; (2) Backend do P1 — implementar `src/custom_fields.py` + `config/custom_fields_map.yaml` (portar do Script OP) e conectar no payload de `create_work_package`/`update_work_package`; (3) validar P1-P4 contra a instância real do OpenProject (`.env` com token real).
-**Estado do git:** `inteligencia/openproject-api/` é repositório git próprio, branch `main`, 1 commit (`4802e53`), working tree limpo. Sem remote configurado ainda.
+**Sessão:** Backend do P1 + validação de integração real contra a instância OpenProject
+**O que foi feito:** `src/custom_fields.py` + `config/custom_fields_map.yaml` portados do Script OP, campo `sistema` adicionado em `CreateWorkPackageInput`/`UpdateWorkPackageInput`, merge no payload em `client.py`. Testes unitários 7/7 verdes. Validação de integração real feita: token do Script OP estava expirado (401 confirmado via curl cru, independente do nosso código) — João gerou token novo; projeto `Pense & Precifique` estava com todos os tipos de WP desabilitados (config pré-existente, não bug) — João habilitou "Task". Work package **#397** criado com sucesso com `customField1` = "BackEnd", confirmado via `GET`. Achado técnico registrado: `POST /work_packages/form` é leniente sobre `type` permitido por projeto, só o `POST /work_packages` final valida de verdade — vale para P2/P3/P4 também. Dado de teste registrado em `docs/DADOS_DE_TESTE.md` para exclusão ao final do pocket.
+**Próximo passo:** P2 — validar `update_work_package(status_id=...)` contra a instância real (mesma ressalva do form leniente se aplica: testar a chamada real, não confiar só no form/schema). Decisão de remote no GitHub para este repo continua em aberto (fica pra depois, por pedido do João).
+**Estado do git:** `inteligencia/openproject-api/` é repositório git próprio, branch `main`, 3 commits (`4802e53`, `4ae51ad`, `8e3d4f7` + este handoff ainda não commitado). Sem remote configurado. `.env` local tem token real válido (gerado por João em 05/09/2026), gitignored.
 
 ---
 
@@ -28,7 +28,7 @@
 
 | # | Tarefa | Gravidade | Análise | Backend | Teste |
 |---|--------|-----------|---------|---------|-------|
-| P1 | Fork + custom fields em criar/editar tarefa | Alta | ✅ | ✅ | 🟡 |
+| P1 | Fork + custom fields em criar/editar tarefa | Alta | ✅ | ✅ | ✅ |
 | P2 | Validar mudar status (`lockVersion` já tratado no fork) | Alta | ✅ | ⬜ | ⬜ |
 | P3 | Editar tarefas (campos gerais) | Normal | ⬜ | ⬜ | ⬜ |
 | P4 | Criar versões + corrigir bug `due_date`/`end_date` | Normal | ✅ | ⬜ | ⬜ |
@@ -56,7 +56,9 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
   - `src/client.py::create_work_package`/`update_work_package` mesclam `data["custom_fields"]` em `payload["_links"]`
   - `.env`/`.env.example` já configurados desde o P-000
 - [x] **Teste (unitário):** `tests/test_custom_fields.py` — 7 testes, 100% verde (`uv run pytest`), cobrindo resolução correta (`"BackEnd"` → `/api/v3/custom_options/2`), erro claro para valor/categoria inválidos, e `resolve_custom_fields` sem `sistema` retornando vazio (comportamento pré-P1 preservado)
-- [ ] **Teste (integração, pendente):** criar 1 work package real de teste com custom field Sistema contra a instância real do OpenProject e confirmar via `GET` que o valor foi de fato aplicado — **requer autorização explícita antes de rodar** (cria dado real na instância)
+- [x] **Teste (integração):** feito em 05/09/2026 contra a instância real. Work package **#397** criado em `Pense & Precifique` com `customField1` = "BackEnd", confirmado via `GET` (`_links.customField1: {"title": "BackEnd", "href": "/api/v3/custom_options/2"}`). Dado registrado em `docs/DADOS_DE_TESTE.md` para exclusão ao final do pocket.
+  - **Achado no caminho**: o projeto `Pense & Precifique` estava com **todos os tipos de work package desabilitados** (config do projeto, não bug do P1) — João habilitou "Task" pela UI antes do teste passar.
+  - **Achado técnico (relevante para P2/P3/P4)**: `POST /work_packages/form` é **leniente** — aceita e retorna preview válido para qualquer `type` mesmo que não esteja habilitado no projeto (`schema.type._embedded.allowedValues` é que reflete a lista real). O `POST /work_packages` final é quem de fato valida contra essa lista e rejeita com 422 `PropertyConstraintViolation`. Ou seja: **o form passar não garante que a criação vai passar** — para status/tipo/campos com lista restrita por projeto, testar sempre a chamada real, não só o form.
 
 *(Melhoria futura, não bloqueante: trocar o mapa estático YAML por descoberta dinâmica via `GET /api/v3/custom_options` — registrar como item futuro, não fazer agora.)*
 
