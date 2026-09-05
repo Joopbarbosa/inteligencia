@@ -17,6 +17,13 @@
 ## Último Handoff
 
 **Data:** 05/09/2026
+**Sessão:** P6 (listar/filtrar tarefas) implementado e validado de ponta a ponta, motivado por dúvida de João sobre se o MCP identifica tarefas de uma versão específica (não identificava até agora).
+**O que foi feito nesta sessão:**
+- **P6**: `client.list_work_packages` + `build_work_package_filters` (função pura, testada) + tool `list_work_packages`. 6 testes unitários novos (13/13 no total). Validado real: WP #397 associada à Versão #24, filtro por versão e por status confirmados no client e na tool MCP. Achado real corrigido: coleção de `/work_packages` não traz `_embedded`, só `_links.{campo}.title` — formatação da tool ajustada.
+- Nenhum dado de teste novo criado — reaproveitou WP #397 e Versão #24 já existentes (`docs/DADOS_DE_TESTE.md` atualizado só com a mudança de estado).
+**Próximo passo:** MCP já registrado no Claude Code (stdio) — a tool nova só aparece numa sessão que reconecte o servidor (reiniciar Claude Code ou `claude mcp` reconectar). P5 (consolidar Script OP) segue para outra sessão.
+
+**Handoff anterior (05/09/2026 — P1 a P4):**
 **Sessão:** P1 a P4 implementados e validados de ponta a ponta contra a instância real do OpenProject — **V0.1 completa** (P5 fica para outra sessão, é a consolidação do Script OP).
 **O que foi feito:**
 - **P1**: `src/custom_fields.py` + `config/custom_fields_map.yaml` portados do Script OP; campo `sistema` em `CreateWorkPackageInput`/`UpdateWorkPackageInput`; testes unitários 7/7 verdes; validado real (WP #397, `customField1`="BackEnd").
@@ -40,6 +47,7 @@
 | P3 | Editar tarefas (campos gerais) | Normal | ✅ | ✅ | ✅ |
 | P4 | Criar versões + corrigir bug `due_date`/`end_date` | Normal | ✅ | ✅ | ✅ |
 | P5 | Consolidar Script OP (import CSV em lote) | Normal | ⬜ | ⬜ | ⬜ |
+| P6 | Listar/filtrar tarefas (ex: todas as tarefas de uma versão) | Normal | ✅ | ✅ | ✅ |
 
 Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se aplica
 
@@ -123,6 +131,25 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
 - [ ] **Teste:** rodar o `exemplo.csv` real do Script OP (`Infraestrutura/Script OP/exemplo.csv`) pela tool nova e comparar resultado com o comportamento documentado do Script OP original (mesmas linhas válidas criadas, mesma linha inválida pulada)
 
 *(Só depois deste item validado em produção, `Infraestrutura/Script OP/` é marcado como legado — não apagar antes disso.)*
+
+---
+
+### P6 — Listar/filtrar tarefas (ex: "todas as tarefas da versão X")
+
+**Gravidade:** Normal
+*Contexto relatado:* João perguntou se o MCP identifica "quais tarefas estão na versão X" — não identificava: `get_work_package` só busca por ID único, não existia nenhuma tool de listar/filtrar. Gap descoberto em conversa, fora da investigação original do P001.
+
+- [x] **Análise:** confirmado que nenhuma tool de listagem/filtro existia (`docs/estrutura/ARCHITECTURE.md` §3 não lista nenhuma). A API v3 suporta nativamente via `GET /api/v3/work_packages?filters=[...]` (e `GET /api/v3/projects/{id}/work_packages` com escopo por projeto) — só não tinha sido portado por não estar nas 4 prioridades originais.
+- [x] **Backend:** feito em 05/09/2026.
+  - `client.py::list_work_packages(project_id, filters, page_size)` — monta a URL com `filters` (JSON, URL-encoded) e `pageSize`, reaproveita `_request` existente.
+  - `src/tools/work_packages.py::build_work_package_filters(...)` — função pura que monta a lista de filtros da API v3 a partir de `version_id`/`status_id`/`type_id`/`assignee_id` (testável sem rede).
+  - Tool nova `list_work_packages` (`ListWorkPackagesInput`: `project_id`, `version_id`, `status_id`, `type_id`, `assignee_id`, todos opcionais).
+- [x] **Teste (unitário):** `tests/test_work_packages_filters.py` — 6 testes, 100% verde, cobrindo cada filtro isolado e a combinação de dois (`version_id=24` é o valor real da Versão #24 de teste).
+- [x] **Teste (integração):** feito em 05/09/2026 contra a instância real, reaproveitando os dados de teste existentes (WP #397, Versão #24, `docs/DADOS_DE_TESTE.md`):
+  - WP #397 associada à Versão #24 via `update_work_package` (dado de teste existente, sem criar dado novo).
+  - `client.list_work_packages(project_id=6, filters=[{"version": ...}])` → retornou `[397]`. Repetido com filtro por `status` → mesmo resultado.
+  - Tool MCP `list_work_packages({"project_id": 6, "version_id": 24})` → retornou a #397 formatada corretamente, confirmando o fluxo ponta a ponta.
+  - **Achado real (não bug, mas corrigido no caminho):** a coleção `GET /work_packages` **não traz `_embedded`** por elemento (diferente do `GET /work_packages/{id}` individual) — tipo/status/prioridade só vêm em `_links.{campo}.title`. A formatação inicial da tool assumia `_embedded` (copiado do padrão de `create_work_package`/`update_work_package`) e mostrava tudo como "—"; corrigido para ler de `_links` antes de fechar a tarefa.
 
 ---
 

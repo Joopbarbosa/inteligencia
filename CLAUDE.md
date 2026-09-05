@@ -18,7 +18,7 @@ Ver `docs/estrutura/ARCHITECTURE.md` (decisões técnicas completas), `docs/PLAN
 | Inicialização do FastMCP + registro de tools | `src/server.py` |
 | Comunicação com a API do OpenProject (HTTP, async) | `src/client.py` |
 | Tools de conexão (`test_connection`, `check_permissions`) | `src/tools/connection.py` |
-| Tools de work package (criar, editar, status, listar tipos/situações/prioridades) | `src/tools/work_packages.py` |
+| Tools de work package (criar, editar, status, listar/filtrar tarefas, listar tipos/situações/prioridades) | `src/tools/work_packages.py` |
 | Tools de versão (`list_versions`, `create_version`) | `src/tools/versions.py` |
 | Resolução de custom fields (texto → href de custom_option) — **nosso, não existe no original** | `src/custom_fields.py` |
 | Mapa estático de custom options — **nosso** | `config/custom_fields_map.yaml` |

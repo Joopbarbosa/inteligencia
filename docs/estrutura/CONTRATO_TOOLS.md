@@ -16,6 +16,24 @@
 
 **Efeito no payload da API**: `sistema` é resolvido para `{"customField1": {"href": "/api/v3/custom_options/N"}}` e mesclado em `payload["_links"]` **depois** do form-fetch (`POST /work_packages/form`), sobrescrevendo qualquer slot que o form já traga para o tipo escolhido.
 
+## `list_work_packages` (P6)
+
+**Input** (`ListWorkPackagesInput`, `src/tools/work_packages.py`):
+
+| Campo | Tipo | Obrigatório | Observação |
+|---|---|---|---|
+| `project_id` | int | não | Sem ele, busca na instância inteira |
+| `version_id` | int | não | Ex.: "todas as tarefas da versão X" |
+| `status_id` | int | não | |
+| `type_id` | int | não | |
+| `assignee_id` | int | não | |
+
+Todos os filtros são combináveis (AND). Sem nenhum filtro, lista as primeiras tarefas da instância/projeto (`pageSize=100` por página — não pagina automaticamente).
+
+**Montagem do filtro**: `build_work_package_filters(...)` (função pura, sem I/O — `tests/test_work_packages_filters.py`) monta a lista no formato da API v3 (`filters=[{"version": {"operator": "=", "values": ["24"]}}, ...]`), passada para `client.list_work_packages(project_id, filters, page_size)`, que faz `GET /work_packages` (ou `/projects/{id}/work_packages`) com `filters` serializado e URL-encoded na query string.
+
+**Achado real (validação P6)**: a coleção `GET /work_packages` não traz `_embedded` por elemento (diferente do `GET /work_packages/{id}` individual usado por `get_work_package`) — tipo/status/prioridade só vêm em `_links.{campo}.title`. A formatação da tool lê de `_links`, não de `_embedded`.
+
 ## `update_work_package`
 
 Mesmo campo `sistema` adicionado em `UpdateWorkPackageInput`, mesmo comportamento de resolução — reaproveita `src/custom_fields.py`. Diferença: aqui o merge acontece no payload do `PATCH` (que já inclui `lockVersion` buscado via `GET` prévio — comportamento herdado, não alterado pelo P1).

@@ -7,6 +7,7 @@
 | 05/09/2026 | Work package (teste de custom field, P1) | **#397** | Pense & Precifique (id=6) | script de validação manual (`validar_p1.py`, fora do repo) | ⬜ pendente de apagar |
 | 05/09/2026 | Mesmo #397, status alterado para "Prioridade" (teste de mudança de status, P2) | #397 | Pense & Precifique (id=6) | script de validação manual (`validar_p2.py`, fora do repo) | — (mesma linha acima, só mudou de estado) |
 | 05/09/2026 | Mesmo #397, subject/prioridade alterados (teste de edição, P3) | #397 | Pense & Precifique (id=6) | script de validação manual (`validar_p3.py`, fora do repo) | — (mesma linha acima, só mudou de estado) |
+| 05/09/2026 | Mesmo #397, associada à Versão #24 (teste de filtro por versão, P6) | #397 | Pense & Precifique (id=6) | script de validação manual (`validar_p6.py`, fora do repo) | — (mesma linha acima, só mudou de estado) |
 | 05/09/2026 | Versão (teste de create_version via client, P4) | **Versão #24** ("[TESTE OPAPI - APAGAR] Validação P4") | Pense & Precifique (id=6) | script de validação manual (`validar_p4.py`, fora do repo) | ⬜ pendente de apagar |
 | 05/09/2026 | Versão (teste de create_version via tool MCP, P4) | **Versão #25** ("[TESTE OPAPI - APAGAR] Validação P4 (via tool)") | Pense & Precifique (id=6) | script de validação manual (`validar_p4.py`, fora do repo) | ⬜ pendente de apagar |
 
