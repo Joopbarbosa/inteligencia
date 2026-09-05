@@ -17,10 +17,17 @@
 ## Último Handoff
 
 **Data:** 05/09/2026
-**Sessão:** Backend do P1 + validação de integração real contra a instância OpenProject
-**O que foi feito:** `src/custom_fields.py` + `config/custom_fields_map.yaml` portados do Script OP, campo `sistema` adicionado em `CreateWorkPackageInput`/`UpdateWorkPackageInput`, merge no payload em `client.py`. Testes unitários 7/7 verdes. Validação de integração real feita: token do Script OP estava expirado (401 confirmado via curl cru, independente do nosso código) — João gerou token novo; projeto `Pense & Precifique` estava com todos os tipos de WP desabilitados (config pré-existente, não bug) — João habilitou "Task". Work package **#397** criado com sucesso com `customField1` = "BackEnd", confirmado via `GET`. Achado técnico registrado: `POST /work_packages/form` é leniente sobre `type` permitido por projeto, só o `POST /work_packages` final valida de verdade — vale para P2/P3/P4 também. Dado de teste registrado em `docs/DADOS_DE_TESTE.md` para exclusão ao final do pocket.
-**Próximo passo:** P4 — corrigir/validar `create_version` (bug `due_date`/`end_date` já corrigido no código, falta validar contra instância real). Decisão de remote no GitHub para este repo continua em aberto (fica pra depois, por pedido do João).
-**Estado do git:** `inteligencia/openproject-api/` é repositório git próprio, branch `main`, 3 commits (`4802e53`, `4ae51ad`, `8e3d4f7` + este handoff ainda não commitado). Sem remote configurado. `.env` local tem token real válido (gerado por João em 05/09/2026), gitignored.
+**Sessão:** P1 a P4 implementados e validados de ponta a ponta contra a instância real do OpenProject — **V0.1 completa** (P5 fica para outra sessão, é a consolidação do Script OP).
+**O que foi feito:**
+- **P1**: `src/custom_fields.py` + `config/custom_fields_map.yaml` portados do Script OP; campo `sistema` em `CreateWorkPackageInput`/`UpdateWorkPackageInput`; testes unitários 7/7 verdes; validado real (WP #397, `customField1`="BackEnd").
+- **P2**: mudança de status validada real (WP #397, `BackLog`→`Prioridade`), `lockVersion` confirmado correto em sucesso e em conflito (409).
+- **P3**: edição de `subject`+`priority_id` validada real numa única chamada; custom field do P1 preservado; achado `percentage_done` read-only nesta instância (não é bug).
+- **P4**: bug `due_date`/`end_date` corrigido no P-000, validado real nas duas camadas (client e tool MCP — versões #24 e #25).
+- Dois obstáculos de ambiente resolvidos no caminho (não eram bugs do código): token do Script OP expirado, e projeto `Pense & Precifique` com todos os tipos de WP desabilitados.
+- Achado técnico transversal: `POST /work_packages/form` é leniente sobre `type` permitido por projeto — só o `POST` final valida de verdade contra `allowedValues`.
+- 4 work packages/versões de teste criados na instância real, todos registrados em `docs/DADOS_DE_TESTE.md` para exclusão.
+**Próximo passo:** (1) João apagar os dados de teste listados em `docs/DADOS_DE_TESTE.md`; (2) decidir remote no GitHub; (3) P5 (consolidar Script OP) e registro do MCP no Claude Code — ambos fora do escopo da V0.1, ficam para o próximo pocket.
+**Estado do git:** `inteligencia/openproject-api/` é repositório git próprio, branch `main`, 6 commits (`4802e53` → `070723d` + este handoff). Sem remote configurado. `.env` local tem token real válido (gerado por João em 05/09/2026), gitignored.
 
 ---
 
@@ -31,7 +38,7 @@
 | P1 | Fork + custom fields em criar/editar tarefa | Alta | ✅ | ✅ | ✅ |
 | P2 | Validar mudar status (`lockVersion` já tratado no fork) | Alta | ✅ | ✅ | ✅ |
 | P3 | Editar tarefas (campos gerais) | Normal | ✅ | ✅ | ✅ |
-| P4 | Criar versões + corrigir bug `due_date`/`end_date` | Normal | ✅ | ⬜ | ⬜ |
+| P4 | Criar versões + corrigir bug `due_date`/`end_date` | Normal | ✅ | ✅ | ✅ |
 | P5 | Consolidar Script OP (import CSV em lote) | Normal | ⬜ | ⬜ | ⬜ |
 
 Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se aplica
@@ -97,8 +104,10 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
 *Contexto relatado:* `create_version` já existe no fork (`name`, `description`, `start_date`, `due_date`, `status`).
 
 - [x] **Análise:** feita em `investigacao/INVESTIGACAO_V0.1_P001.md` — **bug confirmado por leitura de código**: `src/tools/versions.py:94` monta `data["due_date"] = input.due_date`, mas `src/client.py:744` só lê `data["end_date"]` para preencher `payload["endDate"]`. Chave incompatível → o campo de data final informado pelo usuário é **descartado silenciosamente**, nunca chega na API do OpenProject.
-- [ ] **Backend:** corrigir a incompatibilidade de chave (`due_date` vs `end_date`) em `src/tools/versions.py` ou `src/client.py` — escolher um nome e alinhar as duas pontas
-- [ ] **Teste:** criar 1 versão de teste num projeto de teste **incluindo data final**, confirmar via `list_versions`/`GET` que `endDate` foi de fato aplicado (não só que a versão foi criada)
+- [x] **Backend:** corrigido no P-000 (`src/tools/versions.py` monta `data["end_date"]` a partir de `input.due_date`; `src/client.py::create_version` lê `end_date` de forma consistente).
+- [x] **Teste:** feito em 05/09/2026 contra a instância real, nas duas camadas:
+  - `client.create_version` direto (versão #24): `startDate`/`endDate` aplicados corretamente, confirmado via `GET`/`list_versions` separado.
+  - Tool MCP `create_version` (versão #25, `CreateVersionInput.due_date="2027-01-15"`): `**End Date**: 2027-01-15` no retorno da tool — confirma o fix ponta a ponta (o campo do usuário, `due_date`, chega corretamente como `endDate` na API).
 
 ---
 
