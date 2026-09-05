@@ -35,6 +35,40 @@ class CreateWorkPackageInput(BaseModel):
     sistema: Optional[str] = Field(None, description="Custom field 'Sistema' (ex: BackEnd, FrontEnd, Back/Front, Processual, Banco de Dados, Mobile) — ver config/custom_fields_map.yaml para os valores atuais")
 
 
+class ListWorkPackagesInput(BaseModel):
+    """Input model for listing/filtering work packages (P6)."""
+
+    project_id: Optional[int] = Field(None, description="Filtra por projeto", gt=0)
+    version_id: Optional[int] = Field(None, description="Filtra por versão/milestone (ex: 'todas as tarefas da versão X')", gt=0)
+    status_id: Optional[int] = Field(None, description="Filtra por status", gt=0)
+    type_id: Optional[int] = Field(None, description="Filtra por tipo", gt=0)
+    assignee_id: Optional[int] = Field(None, description="Filtra por responsável", gt=0)
+
+
+def build_work_package_filters(
+    *,
+    version_id: Optional[int] = None,
+    status_id: Optional[int] = None,
+    type_id: Optional[int] = None,
+    assignee_id: Optional[int] = None,
+) -> list:
+    """Monta a lista de filtros no formato da API v3 (`filters=[{...}]`).
+
+    Função pura (sem I/O) para ser testável sem mockar a API — ver
+    tests/test_work_packages_filters.py.
+    """
+    filters = []
+    if version_id is not None:
+        filters.append({"version": {"operator": "=", "values": [str(version_id)]}})
+    if status_id is not None:
+        filters.append({"status": {"operator": "=", "values": [str(status_id)]}})
+    if type_id is not None:
+        filters.append({"type": {"operator": "=", "values": [str(type_id)]}})
+    if assignee_id is not None:
+        filters.append({"assignee": {"operator": "=", "values": [str(assignee_id)]}})
+    return filters
+
+
 class UpdateWorkPackageInput(BaseModel):
     """Input model for updating work packages with validation."""
 
@@ -68,6 +102,61 @@ async def get_work_package(work_package_id: int) -> str:
         return format_work_package_detail(wp)
     except Exception as e:
         return format_error(f"Failed to get work package #{work_package_id}: {str(e)}")
+
+
+@mcp.tool
+async def list_work_packages(input: ListWorkPackagesInput) -> str:
+    """List/filter work packages (tasks) - Prioridade 6 (ex: "todas as tarefas da versão X").
+
+    Args:
+        input: Filtros opcionais (project_id, version_id, status_id, type_id, assignee_id).
+            Sem nenhum filtro, lista as primeiras tarefas da instância inteira (cuidado: pode ser muita coisa).
+
+    Returns:
+        Lista formatada de tarefas encontradas (id, subject, tipo, status, prioridade)
+
+    Example:
+        Para achar todas as tarefas da versão 24:
+        {"version_id": 24}
+    """
+    try:
+        client = get_client()
+
+        filters = build_work_package_filters(
+            version_id=input.version_id,
+            status_id=input.status_id,
+            type_id=input.type_id,
+            assignee_id=input.assignee_id,
+        )
+
+        result = await client.list_work_packages(project_id=input.project_id, filters=filters or None)
+        elements = result.get("_embedded", {}).get("elements", [])
+
+        if not elements:
+            return "Nenhuma tarefa encontrada para os filtros informados."
+
+        total = result.get("total", len(elements))
+        text = f"✅ **{len(elements)} tarefa(s)** encontrada(s)"
+        if total > len(elements):
+            text += f" (total no filtro: {total} — só a primeira página é exibida)"
+        text += ":\n\n"
+
+        for wp in elements:
+            # Achado (validação real do P6): a coleção de /work_packages NÃO traz
+            # _embedded para cada elemento (diferente do GET individual) — tipo,
+            # status e prioridade só vêm em _links.{campo}.title.
+            links = wp.get("_links", {})
+            text += f"- **#{wp.get('id')}** {wp.get('subject', 'Sem título')}\n"
+            text += (
+                f"  Tipo: {links.get('type', {}).get('title', '—')}"
+                f" | Status: {links.get('status', {}).get('title', '—')}"
+                f" | Prioridade: {links.get('priority', {}).get('title', '—')}\n"
+            )
+
+        return text
+
+    except Exception as e:
+        return format_error(f"Failed to list work packages: {str(e)}")
 
 
 @mcp.tool

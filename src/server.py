@@ -67,7 +67,7 @@ logger.info("Loading tool modules...")
 
 try:
     from src.tools import connection      # 2 tools: test_connection, check_permissions
-    from src.tools import work_packages   # create, update, get, list_types, list_statuses, list_priorities
+    from src.tools import work_packages   # create, update, get, list_work_packages, list_types, list_statuses, list_priorities
     from src.tools import versions        # 2 tools: list, create
 
     logger.info("✅ Tool modules loaded successfully")

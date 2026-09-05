@@ -419,6 +419,40 @@ class OpenProjectClient:
 
         return result
 
+    async def list_work_packages(
+        self,
+        project_id: Optional[int] = None,
+        filters: Optional[List[Dict]] = None,
+        page_size: int = 100,
+    ) -> Dict:
+        """
+        List/filter work packages (P6 — ex: todas as tarefas de uma versão).
+
+        Args:
+            project_id: Optional project ID to scope the search to
+            filters: Optional list of OpenProject API v3 filter objects
+                (ex: [{"version": {"operator": "=", "values": ["24"]}}])
+            page_size: Max results per page (API default/cap is 100 per página)
+
+        Returns:
+            Dict: API response containing the matching work packages (HAL collection)
+        """
+        endpoint = f"/projects/{project_id}/work_packages" if project_id else "/work_packages"
+
+        query = f"?pageSize={page_size}"
+        if filters:
+            query += f"&filters={quote(json.dumps(filters))}"
+
+        result = await self._request("GET", f"{endpoint}{query}")
+
+        # Ensure proper response structure
+        if "_embedded" not in result:
+            result["_embedded"] = {"elements": []}
+        elif "elements" not in result.get("_embedded", {}):
+            result["_embedded"]["elements"] = []
+
+        return result
+
     async def create_version(self, project_id: int, data: Dict) -> Dict:
         """
         Create a new project version.
