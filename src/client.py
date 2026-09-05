@@ -224,6 +224,14 @@ class OpenProjectClient:
                 "href": f"/api/v3/versions/{data['version_id']}"
             }
 
+        # Custom fields (ex: {"customField1": {"href": "/api/v3/custom_options/2"}}),
+        # já resolvidos por src/custom_fields.py antes de chegar aqui. Sobrescreve
+        # qualquer slot que o form já tenha retornado para o tipo escolhido.
+        if "custom_fields" in data:
+            if "_links" not in payload:
+                payload["_links"] = {}
+            payload["_links"].update(data["custom_fields"])
+
         # Add date fields (ISO 8601 format: YYYY-MM-DD)
         if "startDate" in data:
             payload["startDate"] = data["startDate"]
@@ -358,6 +366,10 @@ class OpenProjectClient:
             }
         if "percentage_done" in data:
             payload["percentageDone"] = data["percentage_done"]
+        if "custom_fields" in data:
+            if "_links" not in payload:
+                payload["_links"] = {}
+            payload["_links"].update(data["custom_fields"])
         if "parent_id" in data:
             if "_links" not in payload:
                 payload["_links"] = {}

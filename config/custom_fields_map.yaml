@@ -1,0 +1,11 @@
+# Mapa texto -> href de custom_option. Atualizar manualmente quando novos valores forem cadastrados no OpenProject.
+# Portado de Infraestrutura/Script OP/config/custom_fields_map.yaml (mesma instância do OpenProject, localhost:8090).
+# Todos os valores abaixo foram confirmados diretamente na base do OpenProject local (openproject_local) em 2026-07-27.
+# Campo Módulo (customField2) e valor "PDF" de Sistema foram removidos do OpenProject — confirmado via API em 2026-08-30.
+sistema:
+  "Back/Front": "/api/v3/custom_options/1"
+  "BackEnd": "/api/v3/custom_options/2"
+  "FrontEnd": "/api/v3/custom_options/3"
+  "Processual": "/api/v3/custom_options/5"
+  "Banco de Dados": "/api/v3/custom_options/13"
+  "Mobile": "/api/v3/custom_options/14"

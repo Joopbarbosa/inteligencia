@@ -10,6 +10,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from src.server import mcp, get_client
+from src.custom_fields import load_map, resolve_custom_fields
 from src.utils.formatting import (
     format_work_package_detail,
     format_success,
@@ -31,6 +32,7 @@ class CreateWorkPackageInput(BaseModel):
     status_id: Optional[int] = Field(None, description="Status ID", gt=0)
     priority_id: Optional[int] = Field(None, description="Priority ID", gt=0)
     version_id: Optional[int] = Field(None, description="Version/milestone ID to assign work package to", gt=0)
+    sistema: Optional[str] = Field(None, description="Custom field 'Sistema' (ex: BackEnd, FrontEnd, Back/Front, Processual, Banco de Dados, Mobile) — ver config/custom_fields_map.yaml para os valores atuais")
 
 
 class UpdateWorkPackageInput(BaseModel):
@@ -47,6 +49,7 @@ class UpdateWorkPackageInput(BaseModel):
     due_date: Optional[str] = Field(None, description="New due date (YYYY-MM-DD)")
     percentage_done: Optional[int] = Field(None, description="Progress percentage (0-100)", ge=0, le=100)
     version_id: Optional[int] = Field(None, description="Version/milestone ID to assign work package to", gt=0)
+    sistema: Optional[str] = Field(None, description="Custom field 'Sistema' (ex: BackEnd, FrontEnd, Back/Front, Processual, Banco de Dados, Mobile) — ver config/custom_fields_map.yaml para os valores atuais")
 
 
 @mcp.tool
@@ -108,6 +111,9 @@ async def create_work_package(input: CreateWorkPackageInput) -> str:
             data["assignee_id"] = input.assignee_id
         if input.version_id:
             data["version_id"] = input.version_id
+        if input.sistema:
+            mapa = load_map()
+            data["custom_fields"] = resolve_custom_fields(mapa, sistema=input.sistema)
 
         # Add date fields (use camelCase for API)
         if input.start_date:
@@ -189,6 +195,9 @@ async def update_work_package(input: UpdateWorkPackageInput) -> str:
             data["percentage_done"] = input.percentage_done
         if input.version_id is not None:
             data["version_id"] = input.version_id
+        if input.sistema is not None:
+            mapa = load_map()
+            data["custom_fields"] = resolve_custom_fields(mapa, sistema=input.sistema)
 
         # Add date fields (use camelCase for API)
         if input.start_date is not None:
