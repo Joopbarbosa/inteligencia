@@ -166,6 +166,13 @@ de destino confirmado existente.
 - **Resíduo não resolvido:** o projeto de teste `#8` não foi excluído (sem `delete_project`, fora do escopo deste pocket) — precisa de exclusão manual pela UI, mesmo padrão da correção V1.1. Todas as tarefas/versões de teste criadas durante a validação foram limpas usando as próprias tools novas (`delete_work_package`/`delete_version`).
 - **Status no OpenProject:** `#403`-`#408` atualizadas para "Pronto para commitar". Nenhum commit git foi feito — aguardando decisão do usuário (regra: só commitar quando pedido).
 
+## 06/09/2026 — Migração executada: projeto `inteligencia` (id `9`) criado, #402-#408 migrados
+
+- Com `#404` e `#408` implementados e validados, o plano de migração registrado na tarefa `#402` foi executado no mesmo dia: `create_project` criou o projeto `inteligencia` (id `9`, identifier `inteligencia`), e `update_work_package` (`project_id`) moveu `#402` a `#408` pra lá — reconfirmado individualmente via `get_work_package` (todos com `_embedded.project.name = "inteligencia"`).
+- `/home/joaobarbosa/Documentos/Projetos/CLAUDE.md` (raiz) atualizado com `inteligencia: 9` na tabela de `project_id`, ao lado do `Pense & Precifique: 6` já existente.
+- **A partir de agora**, qualquer pocket novo de `inteligencia/openproject-api` (ou de outra ferramenta em `inteligencia/`, ex. `github-mcp`) usa o projeto `inteligencia` (id `9`) como âncora — não mais o `6`.
+- Commit do código desta versão: `[V1.2] feat: parent_id, create_project, delete_version/work_package, paginação e mover projeto (#402-#408)` — inclui também a reorganização de `docs/` em `V1.0`/`V1.1`/`V1.2`, herdada de sessões anteriores nunca commitada.
+
 ### Nota — Ciclo em parent_id (#403), decisão de não-decisão
 
 Confirmado com o usuário: **não implementar validação própria de ciclo** (tarefa

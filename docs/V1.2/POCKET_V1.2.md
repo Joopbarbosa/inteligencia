@@ -1,7 +1,7 @@
 # Backlog — inteligencia/openproject-api — V1.2
 
 **Branch:** N/A — repositório local, sem remote no GitHub (`git branch -a` só mostra `main`) — decisão do usuário em 06/09/2026 de não criar branch, trabalho segue direto na `main`.
-**Tarefa âncora (OpenProject):** [#402](http://localhost:8090/work_packages/402) — [Investigação] - Pocket V1.2 - inteligencia/openproject-api (ativar parent_id) — projeto Pense & Precifique (id `6`, usado como âncora de rastreabilidade; a ferramenta não tem projeto próprio no OpenProject — decisão da correção V1.1).
+**Tarefa âncora (OpenProject):** [#402](http://localhost:8090/work_packages/402) — [Investigação] - Pocket V1.2 - inteligencia/openproject-api (ativar parent_id) — migrada para o projeto `inteligencia` (id `9`) em 06/09/2026, ao final deste pocket (criada originalmente no projeto `6`/Pense & Precifique, âncora temporária da correção V1.1).
 **Versão atual:** V1.1 → **destino:** V1.2 (não corresponde a versão/milestone dentro do projeto 6 — é a versão da própria ferramenta `inteligencia/openproject-api`, não do produto Pense & Precifique; nenhum `version_id` do OpenProject foi atribuído às tarefas abaixo por esse motivo, ver `DECISOES_V1.2.md`).
 **Tipo do pocket:** Feature (misto de 6 features pequenas e independentes)
 **Objetivo:** ativar hierarquia nativa de tarefas (parent/child), fechar o gap de criação/exclusão (`create_project`, `delete_version`, `delete_work_package`), paginar `list_work_packages` de verdade e permitir mover tarefa de projeto — para então criar o projeto `inteligencia` no OpenProject e migrar as tarefas deste pocket pra lá.
@@ -135,13 +135,13 @@ Legenda: ⬜ não iniciado · 🟡 em andamento · ✅ concluído · — não se
 - **Ferramenta de relação genérica entre tarefas** (dependências, "relates to", "blocks"): fora de escopo — só parent/child (hierarquia nativa).
 - **Commitar as mudanças pendentes de `docs/V1.0`/`docs/V1.1`:** achado paralelo, não resolvido neste pocket (ver `DECISOES_V1.2.md`).
 
-## Plano de migração para o projeto `inteligencia`
+## Plano de migração para o projeto `inteligencia` — ✅ concluído em 06/09/2026
 
-1. Implementar e validar `#404` (create_project) e `#408` (mover tarefa de projeto) primeiro — são pré-requisito direto da migração.
-2. Usar a tool `create_project` recém-criada para criar o projeto `inteligencia` no OpenProject (dogfooding — serve de validação real da tool).
-3. Usar a tool de mover projeto (`#408`) para migrar `#402`-`#408` (esta tarefa e todas as sub-tarefas deste pocket) do projeto `6` (Pense & Precifique) para `inteligencia`.
-4. Atualizar `CLAUDE.md` (raiz) com o `project_id` do novo projeto `inteligencia`, junto da tabela já existente do `project_id: 6`.
-5. Pockets futuros de `inteligencia/openproject-api` (e de outras ferramentas em `inteligencia/`) passam a usar o projeto `inteligencia` como âncora, não mais o `6`.
+1. [x] Implementar e validar `#404` (create_project) e `#408` (mover tarefa de projeto) primeiro.
+2. [x] Usar a tool `create_project` pra criar o projeto `inteligencia` (id `9`) — dogfooding.
+3. [x] Usar `update_work_package` (`project_id`, `#408`) pra migrar `#402`-`#408` — reconfirmado via `get_work_package` cada um, todos com `_embedded.project.name = "inteligencia"`.
+4. [x] `CLAUDE.md` (raiz) atualizado com `inteligencia: 9` na tabela.
+5. Pockets futuros de `inteligencia/openproject-api` (e de outras ferramentas em `inteligencia/`, ex. `github-mcp`) passam a usar o projeto `inteligencia` (id `9`) como âncora — o projeto `6` (Pense & Precifique) não deve mais ser usado pra isso.
 
 ---
 
