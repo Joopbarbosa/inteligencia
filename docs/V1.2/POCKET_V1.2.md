@@ -19,8 +19,9 @@
 **Data:** 06/09/2026
 **Sessão:** Backend — implementação + validação manual concluídas
 **O que foi feito:** as 6 tarefas implementadas (`src/client.py`, `src/tools/work_packages.py`, `src/tools/versions.py`, `src/tools/projects.py` novo, `src/server.py` registrando o módulo novo) seguindo `ANALYSIS_V1.2.md` + `DECISOES_V1.2.md`. Suite de testes existente (13 testes) passou sem alteração. Corrigido import circular (`versions.py`→`work_packages.py`) descoberto durante os testes, com import tardio. Validação manual completa contra a instância real (script isolado, chamando `server.mcp.call_tool` diretamente — a conexão MCP já aberta nesta sessão roda código antigo, não seria atualizada sem reiniciar): as 6 features + os 2 BLOQUEIOs (RN-NOVA-1, RN-NOVA-2) + a limpeza automática de versão (RN-NOVA-3) + a paginação completa (86/86) se comportaram exatamente como especificado. Status das 6 tarefas atualizado no OpenProject para "Pronto para commitar".
-**Próximo passo:** usuário decidir sobre commit (nenhum commit foi feito ainda — regra de só commitar quando pedido) e sobre apagar manualmente o projeto de teste `#8` ("[TESTE V1.2 - APAGAR] Validação", sem `delete_project` disponível). Depois disso, seguir o plano de migração já registrado em `#402` (criar projeto `inteligencia` de verdade com `create_project`, mover `#402`-`#408` com `update_work_package`).
-**Estado do git:** branch `main`, working tree com as mudanças desta sessão + as pendências herdadas de `docs/V1.0`/`V1.1` (não commitadas, ver entrada anterior).
+**Próximo passo:** só falta o usuário apagar manualmente o projeto de teste `#8` ("[TESTE V1.2 - APAGAR] Validação", sem `delete_project` disponível) — todo o resto do pocket está fechado.
+**Estado do git:** branch `main`, commits `6d133bf` (código + reorganização de docs herdada) e `0932038` (migração + release notes) — working tree limpo.
+**Status no OpenProject:** `#402`-`#408` (projeto `inteligencia`, id `9`) todos **Finalizado (100%)**.
 **Estado do git:** branch `main` (sem branch dedicada), mudanças não commitadas herdadas de sessões anteriores (reorganização `docs/V1.0/` + `docs/V1.1/`) — ver `DECISOES_V1.2.md`, não resolvido neste pocket.
 
 ---
