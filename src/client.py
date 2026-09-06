@@ -223,6 +223,15 @@ class OpenProjectClient:
             payload["_links"]["version"] = {
                 "href": f"/api/v3/versions/{data['version_id']}"
             }
+        if "parent_id" in data:
+            # V1.2 (#403): cria a tarefa já como filha de outra. Diferente do
+            # update, não há branch de remoção aqui — na criação, simplesmente
+            # omitir o campo já resolve "sem pai".
+            if "_links" not in payload:
+                payload["_links"] = {}
+            payload["_links"]["parent"] = {
+                "href": f"/api/v3/work_packages/{data['parent_id']}"
+            }
 
         # Custom fields (ex: {"customField1": {"href": "/api/v3/custom_options/2"}}),
         # já resolvidos por src/custom_fields.py antes de chegar aqui. Sobrescreve
@@ -364,6 +373,24 @@ class OpenProjectClient:
             payload["_links"]["version"] = {
                 "href": f"/api/v3/versions/{data['version_id']}"
             }
+        if "project_id" in data:
+            # V1.2 (#408): mover a tarefa de projeto — mesmo padrão _links já
+            # usado por create_work_package (nunca tinha sido portado pro update).
+            if "_links" not in payload:
+                payload["_links"] = {}
+            payload["_links"]["project"] = {
+                "href": f"/api/v3/projects/{data['project_id']}"
+            }
+            # RN-NOVA-3 (DECISOES_V1.2.md): mover de projeto invalida o vínculo
+            # de versão do projeto de origem — limpa automaticamente, a menos
+            # que um version_id novo já tenha sido definido acima nesta mesma
+            # chamada (nesse caso, respeita o que foi pedido explicitamente).
+            if "version" not in payload["_links"]:
+                current_version_href = (
+                    current_wp.get("_links", {}).get("version", {}).get("href")
+                )
+                if current_version_href:
+                    payload["_links"]["version"] = {"href": None}
         if "percentage_done" in data:
             payload["percentageDone"] = data["percentage_done"]
         if "custom_fields" in data:
@@ -428,28 +455,53 @@ class OpenProjectClient:
         """
         List/filter work packages (P6 — ex: todas as tarefas de uma versão).
 
+        V1.2 (#407): pagina automaticamente por `offset` até coletar todos os
+        elementos que a API reporta em `total` — antes, buscava só a primeira
+        página e a tool só avisava que havia mais (achado ANALYSIS_V1.2.md).
+
         Args:
             project_id: Optional project ID to scope the search to
             filters: Optional list of OpenProject API v3 filter objects
                 (ex: [{"version": {"operator": "=", "values": ["24"]}}])
-            page_size: Max results per page (API default/cap is 100 per página)
+            page_size: Max results per page (API default/cap é ~100 por página)
 
         Returns:
-            Dict: API response containing the matching work packages (HAL collection)
+            Dict: API response (HAL collection) com TODOS os elementos que
+                casam o filtro, não só a primeira página.
         """
         endpoint = f"/projects/{project_id}/work_packages" if project_id else "/work_packages"
 
-        query = f"?pageSize={page_size}"
-        if filters:
-            query += f"&filters={quote(json.dumps(filters))}"
+        all_elements: List[Dict] = []
+        offset = 1
+        first_page: Optional[Dict] = None
+        # Trava de segurança: nunca busca mais que 50 páginas (~5000 itens no
+        # pageSize padrão) — evita loop indefinido se a API relatar `total`
+        # de forma inconsistente. Não esperado na prática hoje.
+        max_pages = 50
 
-        result = await self._request("GET", f"{endpoint}{query}")
+        for _ in range(max_pages):
+            query = f"?pageSize={page_size}&offset={offset}"
+            if filters:
+                query += f"&filters={quote(json.dumps(filters))}"
+
+            page = await self._request("GET", f"{endpoint}{query}")
+            if first_page is None:
+                first_page = page
+
+            elements = page.get("_embedded", {}).get("elements", [])
+            all_elements.extend(elements)
+
+            total = page.get("total", len(all_elements))
+            if not elements or len(all_elements) >= total:
+                break
+            offset += 1
+
+        result = first_page if first_page is not None else {}
 
         # Ensure proper response structure
         if "_embedded" not in result:
-            result["_embedded"] = {"elements": []}
-        elif "elements" not in result.get("_embedded", {}):
-            result["_embedded"]["elements"] = []
+            result["_embedded"] = {}
+        result["_embedded"]["elements"] = all_elements
 
         return result
 
@@ -486,3 +538,66 @@ class OpenProjectClient:
             payload["status"] = data["status"]
 
         return await self._request("POST", "/versions", payload)
+
+    async def delete_version(self, version_id: int) -> Dict:
+        """
+        Delete a project version (V1.2, #405).
+
+        A checagem de BLOQUEIO (RN-NOVA-1 — recusar se houver tarefas
+        vinculadas) é responsabilidade da camada de tool
+        (`src/tools/versions.py`), não deste método — aqui é só o DELETE cru,
+        no mesmo padrão de `_request` usado pelos outros verbos.
+
+        Args:
+            version_id: The version ID to delete
+
+        Returns:
+            Dict: API response (vazio — a API retorna 204 No Content em
+                exclusões bem-sucedidas; `_request` já trata corpo vazio).
+        """
+        return await self._request("DELETE", f"/versions/{version_id}")
+
+    async def delete_work_package(self, work_package_id: int) -> Dict:
+        """
+        Delete a work package (V1.2, #406).
+
+        A checagem de BLOQUEIO (RN-NOVA-2 — recusar se houver filhos) é
+        responsabilidade da camada de tool (`src/tools/work_packages.py`),
+        não deste método.
+
+        Args:
+            work_package_id: The work package ID to delete
+
+        Returns:
+            Dict: API response (vazio — 204 No Content em exclusões bem-sucedidas).
+        """
+        return await self._request("DELETE", f"/work_packages/{work_package_id}")
+
+    async def create_project(self, data: Dict) -> Dict:
+        """
+        Create a new project (V1.2, #404).
+
+        Não existia nesta vendorização (descartado do fork original — ver
+        ARCHITECTURE.md §3 e ACHADO_V1.1_LIST_PROJECTS.md). Payload direto,
+        sem fluxo de form — mesmo padrão de `create_version`.
+
+        Args:
+            data: Project data — `name` obrigatório, `identifier` e
+                `description` opcionais. `identifier` ausente é deixado para
+                a própria API do OpenProject gerar a partir do `name`
+                (decisão registrada em DECISOES_V1.2.md — sem RN, é contrato
+                técnico, não regra de comportamento).
+
+        Returns:
+            Dict: Created project data
+        """
+        payload: Dict[str, Any] = {}
+
+        if "name" in data:
+            payload["name"] = data["name"]
+        if "identifier" in data:
+            payload["identifier"] = data["identifier"]
+        if "description" in data:
+            payload["description"] = {"raw": data["description"]}
+
+        return await self._request("POST", "/projects", payload)

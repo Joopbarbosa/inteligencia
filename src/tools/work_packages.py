@@ -4,6 +4,11 @@ Vendoring seletivo (ver docs/estrutura/ARCHITECTURE.md §3): mantidas só as
 tools usadas pelas 4 prioridades de João. `get_work_package` foi adicionada
 por nós (não existe no projeto original como tool) para suportar os passos
 de validação "confirmar via GET" do docs/BACKLOG_V0.1.md.
+
+V1.2 (docs/V1.2/): `delete_work_package` é nosso, novo (RN-NOVA-2 — bloqueia
+se houver filhos, ANALYSIS/DECISOES_V1.2.md); `parent_id` (create/update) e
+`project_id` (update, com RN-NOVA-3 de limpeza de version_id) conectam código
+que já existia em client.py mas nunca tinha sido exposto pela tool.
 """
 
 from typing import Optional
@@ -33,6 +38,7 @@ class CreateWorkPackageInput(BaseModel):
     priority_id: Optional[int] = Field(None, description="Priority ID", gt=0)
     version_id: Optional[int] = Field(None, description="Version/milestone ID to assign work package to", gt=0)
     sistema: Optional[str] = Field(None, description="Custom field 'Sistema' (ex: BackEnd, FrontEnd, Back/Front, Processual, Banco de Dados, Mobile) — ver config/custom_fields_map.yaml para os valores atuais")
+    parent_id: Optional[int] = Field(None, description="ID da tarefa pai — cria esta tarefa já como filha dela (hierarquia nativa do OpenProject)", gt=0)
 
 
 class ListWorkPackagesInput(BaseModel):
@@ -84,6 +90,14 @@ class UpdateWorkPackageInput(BaseModel):
     percentage_done: Optional[int] = Field(None, description="Progress percentage (0-100)", ge=0, le=100)
     version_id: Optional[int] = Field(None, description="Version/milestone ID to assign work package to", gt=0)
     sistema: Optional[str] = Field(None, description="Custom field 'Sistema' (ex: BackEnd, FrontEnd, Back/Front, Processual, Banco de Dados, Mobile) — ver config/custom_fields_map.yaml para os valores atuais")
+    parent_id: Optional[int] = Field(None, description="Nova tarefa pai — envie null explicitamente para remover o pai atual. Ausente = não mexe no pai.", gt=0)
+    project_id: Optional[int] = Field(None, description="Move a tarefa para outro projeto (hierarquia nativa) — RN-NOVA-3: se a tarefa tiver version_id do projeto de origem, ele é limpo automaticamente", gt=0)
+
+
+class DeleteWorkPackageInput(BaseModel):
+    """Input model for deleting a work package (V1.2, #406)."""
+
+    work_package_id: int = Field(..., description="Work package ID to delete", gt=0)
 
 
 @mcp.tool
@@ -203,6 +217,8 @@ async def create_work_package(input: CreateWorkPackageInput) -> str:
         if input.sistema:
             mapa = load_map()
             data["custom_fields"] = resolve_custom_fields(mapa, sistema=input.sistema)
+        if input.parent_id:
+            data["parent_id"] = input.parent_id
 
         # Add date fields (use camelCase for API)
         if input.start_date:
@@ -287,6 +303,14 @@ async def update_work_package(input: UpdateWorkPackageInput) -> str:
         if input.sistema is not None:
             mapa = load_map()
             data["custom_fields"] = resolve_custom_fields(mapa, sistema=input.sistema)
+        if input.project_id is not None:
+            data["project_id"] = input.project_id
+        # parent_id é o único campo em que `None` é um valor válido e
+        # distinto de "não enviado" (None explícito = remover o pai atual,
+        # ver client.py::update_work_package). Por isso usa model_fields_set
+        # em vez de "is not None", diferente do padrão dos outros campos acima.
+        if "parent_id" in input.model_fields_set:
+            data["parent_id"] = input.parent_id
 
         # Add date fields (use camelCase for API)
         if input.start_date is not None:
@@ -317,6 +341,8 @@ async def update_work_package(input: UpdateWorkPackageInput) -> str:
             text += f"**Priority**: {embedded['priority'].get('name', 'Unknown')}\n"
         if "assignee" in embedded:
             text += f"**Assignee**: {embedded['assignee'].get('name', 'Unassigned')}\n"
+        if "project" in embedded:
+            text += f"**Project**: {embedded['project'].get('name', 'Unknown')}\n"
 
         if result.get('startDate'):
             text += f"**Start Date**: {result['startDate']}\n"
@@ -329,6 +355,47 @@ async def update_work_package(input: UpdateWorkPackageInput) -> str:
 
     except Exception as e:
         return format_error(f"Failed to update work package: {str(e)}")
+
+
+@mcp.tool
+async def delete_work_package(input: DeleteWorkPackageInput) -> str:
+    """Delete a work package (task) - V1.2 (#406).
+
+    RN-NOVA-2 (DECISOES_V1.2.md): recusa a exclusão se a tarefa tiver filhos
+    (sub-tarefas via parent_id) — sem exclusão em cascata. Usuário precisa
+    excluir ou reatribuir os filhos primeiro (update_work_package com
+    parent_id apontando pra outro pai, ou null).
+
+    Args:
+        input: work_package_id a excluir
+
+    Returns:
+        Success message, ou erro de BLOQUEIO listando os filhos encontrados
+    """
+    try:
+        client = get_client()
+
+        # RN-NOVA-2: checar filhos antes de excluir (BLOQUEIO, sem cascata).
+        wp = await client.get_work_package(input.work_package_id)
+        children_links = wp.get("_links", {}).get("children", [])
+        if children_links:
+            child_ids = []
+            for link in children_links:
+                href = link.get("href", "")
+                child_ids.append(href.rsplit("/", 1)[-1] if href else "?")
+            return format_error(
+                f"BLOQUEIO: a tarefa #{input.work_package_id} tem "
+                f"{len(children_links)} filho(s) (#{', #'.join(child_ids)}) — "
+                "exclua ou reatribua os filhos primeiro (update_work_package "
+                "com parent_id apontando pra outro pai, ou null)."
+            )
+
+        await client.delete_work_package(input.work_package_id)
+
+        return format_success(f"Work package #{input.work_package_id} deleted successfully!")
+
+    except Exception as e:
+        return format_error(f"Failed to delete work package #{input.work_package_id}: {str(e)}")
 
 
 @mcp.tool

@@ -1,4 +1,8 @@
-"""Version/milestone management tools."""
+"""Version/milestone management tools.
+
+V1.2 (docs/V1.2/): `delete_version` é novo (RN-NOVA-1 — bloqueia se houver
+tarefas vinculadas, ver ANALYSIS/DECISOES_V1.2.md).
+"""
 
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -14,6 +18,12 @@ class CreateVersionInput(BaseModel):
     start_date: Optional[str] = Field(None, description="Start date (YYYY-MM-DD)")
     due_date: Optional[str] = Field(None, description="Due date (YYYY-MM-DD)")
     status: Optional[str] = Field(None, description="Status (open, locked, closed)")
+
+
+class DeleteVersionInput(BaseModel):
+    """Input model for deleting a version (V1.2, #405)."""
+    version_id: int = Field(..., description="Version ID to delete", gt=0)
+    project_id: int = Field(..., description="Project ID the version belongs to (necessário para checar tarefas vinculadas antes de excluir)", gt=0)
 
 
 @mcp.tool
@@ -119,3 +129,45 @@ async def create_version(input: CreateVersionInput) -> str:
 
     except Exception as e:
         return format_error(f"Failed to create version: {str(e)}")
+
+
+@mcp.tool
+async def delete_version(input: DeleteVersionInput) -> str:
+    """Delete a project version/milestone - V1.2 (#405).
+
+    RN-NOVA-1 (DECISOES_V1.2.md): recusa a exclusão se houver tarefas
+    vinculadas a essa versão — usuário precisa reatribuir/remover a versão
+    de cada tarefa primeiro (update_work_package, version_id).
+
+    Args:
+        input: version_id a excluir + project_id (pra checar tarefas vinculadas)
+
+    Returns:
+        Success message, ou erro de BLOQUEIO com a contagem de tarefas vinculadas
+    """
+    try:
+        client = get_client()
+
+        # Import tardio: evita import circular no boot (server.py importa
+        # work_packages antes de versions; um import no topo deste arquivo
+        # pegaria work_packages ainda parcialmente inicializado se este
+        # módulo for importado isoladamente, como faz o teste de filtros).
+        from src.tools.work_packages import build_work_package_filters
+
+        # RN-NOVA-1: checar tarefas vinculadas antes de excluir (BLOQUEIO).
+        filters = build_work_package_filters(version_id=input.version_id)
+        linked = await client.list_work_packages(project_id=input.project_id, filters=filters)
+        elements = linked.get("_embedded", {}).get("elements", [])
+        if elements:
+            return format_error(
+                f"BLOQUEIO: a versão #{input.version_id} tem {len(elements)} "
+                "tarefa(s) vinculada(s) — reatribua ou remova a versão de cada "
+                "uma primeiro (update_work_package, version_id) antes de excluir."
+            )
+
+        await client.delete_version(input.version_id)
+
+        return format_success(f"Version #{input.version_id} deleted successfully!")
+
+    except Exception as e:
+        return format_error(f"Failed to delete version #{input.version_id}: {str(e)}")

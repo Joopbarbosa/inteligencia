@@ -63,12 +63,15 @@ def get_client():
 # Import tool modules (decorators auto-register tools)
 # Vendoring seletivo (ver docs/estrutura/ARCHITECTURE.md §3): só os módulos usados
 # pelas 4 prioridades de João (criar/status/editar/versão) foram mantidos.
+# V1.2 (docs/V1.2/): src.tools.projects é novo (create_project, #404) — projects.py
+# do fork original tinha sido descartado na vendorização, só isso foi trazido de volta.
 logger.info("Loading tool modules...")
 
 try:
     from src.tools import connection      # 2 tools: test_connection, check_permissions
-    from src.tools import work_packages   # create, update, get, list_work_packages, list_types, list_statuses, list_priorities
-    from src.tools import versions        # 2 tools: list, create
+    from src.tools import work_packages   # create, update, get, list, delete_work_package, list_types, list_statuses, list_priorities
+    from src.tools import versions        # 3 tools: list, create, delete_version
+    from src.tools import projects        # 1 tool: create_project (V1.2, #404)
 
     logger.info("✅ Tool modules loaded successfully")
 except ImportError as e:
