@@ -214,6 +214,8 @@ async def create_work_package(input: CreateWorkPackageInput) -> str:
             data["assignee_id"] = input.assignee_id
         if input.version_id:
             data["version_id"] = input.version_id
+        if input.status_id:
+            data["status_id"] = input.status_id
         if input.sistema:
             mapa = load_map()
             data["custom_fields"] = resolve_custom_fields(mapa, sistema=input.sistema)

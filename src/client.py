@@ -223,6 +223,16 @@ class OpenProjectClient:
             payload["_links"]["version"] = {
                 "href": f"/api/v3/versions/{data['version_id']}"
             }
+        if "status_id" in data:
+            # Achado #14 (pocket piloto V0.8.4, 2026-09-11): status_id era aceito
+            # pela tool/Pydantic mas nunca aplicado aqui — toda tarefa nascia no
+            # status default (BackLog), exigindo update_work_package separado
+            # sempre que uma skill pedia criar já em outro status.
+            if "_links" not in payload:
+                payload["_links"] = {}
+            payload["_links"]["status"] = {
+                "href": f"/api/v3/statuses/{data['status_id']}"
+            }
         if "parent_id" in data:
             # V1.2 (#403): cria a tarefa já como filha de outra. Diferente do
             # update, não há branch de remoção aqui — na criação, simplesmente
