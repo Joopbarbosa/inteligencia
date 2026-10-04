@@ -1,0 +1,33 @@
+# leitor-fiscal: serviço + Postgres próprio. Porta não publicada no host (INV-LF-5).
+# A rede externa precisa existir antes: docker network create leitor-fiscal-rede
+services:
+  leitor-fiscal:
+    build: .
+    env_file: .env
+    depends_on:
+      - leitor-fiscal-db
+    mem_limit: 256m
+    networks:
+      - interna
+      - leitor-fiscal-rede
+    restart: unless-stopped
+
+  leitor-fiscal-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - leitor-fiscal-dados:/var/lib/postgresql/data
+    networks:
+      - interna
+    restart: unless-stopped
+
+volumes:
+  leitor-fiscal-dados:
+
+networks:
+  interna:
+  leitor-fiscal-rede:
+    external: true
