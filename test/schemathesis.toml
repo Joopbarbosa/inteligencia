@@ -1,0 +1,5 @@
+[auth.openapi.chaveProduto]
+bearer = "${TEST_ENDPOINT_TOKEN}"
+
+[headers]
+X-Conta-Id = "${TEST_CONTA_ID}"
