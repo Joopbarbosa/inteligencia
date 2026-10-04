@@ -6,3 +6,6 @@ node_modules
 test
 coverage
 *.log
+
+.schemathesis/
+.hypothesis/
