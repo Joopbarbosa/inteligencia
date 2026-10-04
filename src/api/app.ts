@@ -26,7 +26,7 @@ export async function criarApp(opcoes: OpcoesApp) {
    if (!id) throw new ErroLeitura('CHAVE_INVALIDA', 401);
    req.chaveClienteId = id;
   }
- }, async (req, reply) => {
+ }, async (req) => {
   const chaveClienteId = req.chaveClienteId;
   const contaId = z.uuid().parse(req.headers['x-conta-id']);
   let entrada: EntradaLeitura;
@@ -53,7 +53,7 @@ export async function criarApp(opcoes: OpcoesApp) {
    abortar = () => reject(new ErroLeitura('LEITURA_IMPOSSIVEL'));
    signal.addEventListener('abort', abortar, { once: true });
   });
-  try { return reply.send(await Promise.race([orquestrador.ler(entrada, { chaveClienteId, contaId, signal }), prazo])); }
+  try { return await Promise.race([orquestrador.ler(entrada, { chaveClienteId, contaId, signal }), prazo]); }
   finally { if (abortar) signal.removeEventListener('abort', abortar); }
  });
  return app;
