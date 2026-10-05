@@ -88,7 +88,7 @@ it('IA desligada não chama adaptador', async () => {
  expect(inteligencia).not.toHaveBeenCalled();
 });
 
-it('#679: upload HTTP de QR real em PNG usa SP controlado e releitura usa cache sem rede/IA', async () => {
+it('#679: upload HTTP de QR gerado em PNG usa SP controlado e releitura usa cache sem rede/IA', async () => {
  const QRCode = await import('qrcode');
  const { decodificarQr } = await import('../src/leitura/qr/decodificar.js');
  const { CacheMemoria } = await import('../src/cache/notas.js');
