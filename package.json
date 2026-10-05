@@ -14,7 +14,9 @@
     "lint": "eslint src test",
     "test": "vitest run",
     "chave:criar": "node dist/autenticacao/cli.js criar",
-    "chave:revogar": "node dist/autenticacao/cli.js revogar"
+    "chave:revogar": "node dist/autenticacao/cli.js revogar",
+    "amostra:ver": "node dist/amostras/cli.js ver",
+    "alerta:resolver": "node dist/amostras/cli.js resolver"
   },
   "dependencies": {
     "@fastify/multipart": "^10.1.2",

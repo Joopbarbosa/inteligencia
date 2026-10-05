@@ -15,6 +15,7 @@ export interface AdaptadoresLeitura {
  buscarPortal?: (url: string, signal: AbortSignal) => Promise<string>;
  decodificarQr?: (dados: Buffer, mime: string, signal: AbortSignal) => Promise<string | undefined>;
  cache?: CacheNotas;
+ registrarFallback?: (pagina: NonNullable<EntradaLeitura['pagina']>) => Promise<void>;
 }
 export class Orquestrador {
  private emCurso = new Map<string,Promise<NotaLida>>();
@@ -52,7 +53,13 @@ export class Orquestrador {
     try { const resultado = await this.adaptadores.leitorUf(preparada, contexto); if (resultado) nota = notaSchema.parse(resultado); }
     catch { contexto.signal.throwIfAborted(); }
    }
-   if (!nota && this.iaHabilitada && this.adaptadores.ia) nota = notaSchema.parse(await this.adaptadores.ia(preparada, contexto));
+   if (!nota && this.iaHabilitada && this.adaptadores.ia) {
+    if (preparada.pagina) {
+     try { await this.adaptadores.registrarFallback?.(preparada.pagina); }
+     catch { /* Falha de amostra não impede a leitura fiscal. */ }
+    }
+    nota = notaSchema.parse(await this.adaptadores.ia(preparada, contexto));
+   }
    if (!nota) throw new ErroLeitura('LEITURA_IMPOSSIVEL');
    if (chave && (nota.chaveAcesso !== chave || nota.uf !== ufDaChave(chave))) throw new ErroLeitura('LEITURA_IMPOSSIVEL');
    if (avisoQr) nota = { ...nota, avisos: [...nota.avisos, 'O QR não pôde ser lido; a leitura foi feita pela imagem.'] };

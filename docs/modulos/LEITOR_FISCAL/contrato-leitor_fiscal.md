@@ -82,3 +82,14 @@ Mês civil em America/Sao_Paulo; limites30/conta e2000/chave, primeiro que bloqu
 Reserva atômica antes de chamarIA; falha devolve reserva, sucesso incrementa contador. Reservas
 expiram após120s em caso de queda do processo. Concorrência por chave4; excesso é400/BLOQUEIO.
 Logs somente provedor/modelo/tokens/custo estimado, sem documento/chave/CPF/token.
+
+## #680 — Amostras e alertas (antes do código, 2026-10-05)
+
+Sem rotas HTTP novas. Só fallback de NFC-e consultada no portal gera amostra sanitizada
+(emitente/itens, sem CPF/URL) e alerta local único aberto por UF/leiaute. Conteúdo repetido
+incrementa contador sem duplicar amostra; retenção12meses, limpeza startup/24h. CLI local
+amostra:ver e alerta:resolver. Worker60s consulta título exato no projeto9 antes de criar,
+adota tarefa existente após resposta perdida e repete com backoff60s→1h. Envia apenas
+metadados/identificadores, nunca documento/CPF/chave/URL de cupom. Falha de OpenProject
+não afeta a leitura. Comentário diário somente quando link addComment for disponibilizado;
+sem esse link o contador local basta. Configuração sem credencial desativa envio remoto.
