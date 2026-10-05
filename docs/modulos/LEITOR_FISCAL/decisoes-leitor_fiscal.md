@@ -32,3 +32,12 @@ Cache, limites, SSRF, QR, IA, alertas e amostras permanecem nas tarefas designad
 - Experimento prévio em imagem node:24-alpine com limite 256 MiB, 1CPU: PNG640px 185ms, PDF raster1500px 381ms, ambos decodificaram o mesmo link; RSS Node final90.329.088 bytes, pico cgroup68.931.584 bytes (memória compartilhada pode não ser debitada integralmente ao cgroup). Sem OOM. Logs /tmp/leitor679-benchmark.jsonl e fixture controlada /tmp/codex679-bench. Não equivale a medição de todos os PDFs reais.
 - Processamento sequencial de QR; máximo10MB, imagem12MP e raster1500px, três primeiras páginas, subprocesso15s/página. Não instalar browser no leitor.
 - Gestor fornecerá o QR real de SP no roteiro final. Fixture sintética não prova leiaute do portal real; liberação em produção depende da validação real/VPS prevista em DT-NOVA-15.
+
+## #678 — Cadeia IA e limites (2026-10-05)
+
+- IA permanece desligada por padrão. Provedor principal compatível com chat/completions e fallback Anthropic são configuráveis; nenhuma credencial real é necessária nos testes. JSON e schema inválidos, timeout, 429 e 5xx acionam fallback; 400/401 encerram a cadeia.
+- HTML é reduzido localmente a emitente/itens, sem CPF. Chave, data e totais são extraídos localmente e combinados após validação. PDF textual usa pdftotext e remoção de CPF; fotos e PDF sem texto exigem confirmação explícita.
+- O adaptador compatível rasteriza PDF escaneado em até três páginas para os blocos de imagem suportados pelo protocolo; não recorta o conteúdo. PDFs maiores seguem ao fallback. Anthropic recebe o PDF original como document/base64. Não presumir suporte a upload de PDF no endpoint compatível.
+- Limites mensais usam mês de São Paulo, reserva transacional e advisory lock por chave, antes da chamada. Somente resultado válido incrementa uso. Reservas abandonadas expiram em 120 segundos; falha/aborto libera a reserva. Padrões: 30 por conta e 2.000 por chave.
+- Até quatro leituras HTTP simultâneas por chave; quinta retorna erro estruturado. Logs contêm somente provedor, modelo, tokens e custo estimado configurável, sem documento, chave de API ou conta. Sem preço configurado, custo é null, sem estimativa inventada.
+- Evidência: 106 testes, incluindo servidor HTTP IA local real, reservas concorrentes em PostgreSQL, fronteira mensal, confirmação e privacidade. Provedores comerciais não foram chamados; validação funcional real permanece no roteiro final.

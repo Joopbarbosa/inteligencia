@@ -65,3 +65,20 @@ Leitor SP conservador, por assinatura de leiaute e dados obrigatórios. Nesta en
 somente sobre fixture controlada; cupom real fornecido pelo Gestor no teste final. Em produção,
 SP_LEITOR_LIBERADO=false até validar consulta real/VPS (DT-NOVA-15). Não alegar cobertura real
 aprovada. Chave/UF diferente da resposta bloqueia LEITURA_IMPOSSIVEL antes de gravar no cache.
+
+## #678 — IA, privacidade e limites (contrato antes do código, 2026-10-05)
+
+Mantém POST /v1/leituras e nota/erro OpenAPI. IA desligada por padrão (`IA_HABILITADA=0`);
+produção só liga após política #675. Cadeia compatívelOpenAI (deepseek-flash primário) e
+AnthropicMessages (fallback), configurada por ambiente. Tentativa20s, resposta validadazod;
+timeout/5xx/429/schema inválido seguem ao próximo. Esgotada retorna IA_INDISPONIVEL.
+Texto do portal enviado à IA contém só emitente e itens, CPF removido. Metadatafiscal obrigatória
+(chave, número, série, emissão, total) extraída localmente e incorporada após extração dos itens;
+não depende de a IA inventar metadados que não foram enviados. Se não for possível extrair
+metadados obrigatórios de modo confiável, leitura falha. PDF com texto usa texto com CPF removido;
+foto/PDFescaneado requer confirmação e CPF na imagem não é ocultado (decisãoGestor).
+Resultado IA validado e coerente com chave/UF conta1uso; XML/leitorUF/cache não contam.
+Mês civil em America/Sao_Paulo; limites30/conta e2000/chave, primeiro que bloquear prevalece.
+Reserva atômica antes de chamarIA; falha devolve reserva, sucesso incrementa contador. Reservas
+expiram após120s em caso de queda do processo. Concorrência por chave4; excesso é400/BLOQUEIO.
+Logs somente provedor/modelo/tokens/custo estimado, sem documento/chave/CPF/token.
