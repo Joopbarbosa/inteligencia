@@ -1,5 +1,6 @@
 import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
+import type { LookupFunction } from 'node:net';
 import { setTimeout as pausa } from 'node:timers/promises';
 import ipaddr from 'ipaddr.js';
 import portais from './portais.json' with { type: 'json' };
@@ -24,10 +25,19 @@ interface Endereco { address: string; family: number }
 export type Resolver = (host: string) => Promise<Endereco[]>;
 export type Transporte = (url: URL, endereco: Endereco, signal: AbortSignal) => Promise<RespostaPortal>;
 
-/** lookup fixa o IP validado; SNI/certificado continuam associados ao host oficial. */
+/**
+ * Lookup que devolve só o IP já validado, sem nova consulta de DNS (contra DNS rebinding). O Node 20+ pede
+ * `all: true` e exige lista; sem isso toda consulta falha com ERR_INVALID_IP_ADDRESS (#705).
+ */
+export const lookupFixo = (endereco: Endereco): LookupFunction => (_host, opcoes, callback) => {
+ if (opcoes.all) (callback as (erro: null, enderecos: Endereco[]) => void)(null, [endereco]);
+ else callback(null, endereco.address, endereco.family);
+};
+
+/** O lookup fixa o IP validado; SNI/certificado continuam associados ao host oficial. */
 export const transportar: Transporte = (url, endereco, signal) => new Promise((resolve, reject) => {
  const req = request(url, { signal, agent: false, servername: url.hostname,
-  lookup: (_host, _opcoes, callback) => callback(null, endereco.address, endereco.family),
+  lookup: lookupFixo(endereco),
   headers: { accept: 'text/html', 'user-agent': 'leitor-fiscal/0.16.0' } }, res => {
   const status = res.statusCode ?? 500;
   if ([301,302,303,307,308].includes(status)) {
