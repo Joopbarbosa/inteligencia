@@ -32,6 +32,7 @@ XML até 5 MB; demais arquivos até 10 MB. Campos desconhecidos e entradas simul
 |---|---|---|
 | 400 | BLOQUEIO | DOCUMENTO_INVALIDO: entrada, conta, XML ou multipart inválido, limite de tamanho ou dados obrigatórios ausentes |
 | 400 | BLOQUEIO | CONFIRMACAO_ENVIO_IA_AUSENTE: imagem ou PDF sem confirmação |
+| 400 | BLOQUEIO | CHAVE_EXIGE_QR: NFC-e de UF cujo portal exige captcha na consulta pela chave (hoje SP), enviada só com a chave e sem cache. O portal e a IA não são chamados. Chave já lida antes pelo QR continua vindo do cache |
 | 400 | BLOQUEIO | LEITURA_IMPOSSIVEL: leitor externo/IA ainda não ligado na #677 |
 | 401 | BLOQUEIO | CHAVE_INVALIDA: chave ausente, inválida ou revogada |
 | 404 | BLOQUEIO | RECURSO_INEXISTENTE: rota inexistente |
