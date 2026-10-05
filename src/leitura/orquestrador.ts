@@ -4,6 +4,7 @@ import { ErroLeitura } from '../shared/erro.js';
 import { validarPortal } from '../seguranca/buscaSegura.js';
 import { chaveDoQr, ufDaChave } from './chave.js';
 import { identificarLeiaute } from '../leitores/leiaute.js';
+import { ufsQueExigemQr } from '../leitores/registro.js';
 import type { CacheNotas } from '../cache/notas.js';
 export interface EntradaLeitura { modelo: 'NFE' | 'NFCE'; qrUrl?: string | undefined; chaveAcesso?: string | undefined;
  arquivo?: { dados: Buffer; mime: string } | undefined; confirmouEnvioIa?: boolean | undefined;
@@ -44,6 +45,8 @@ export class Orquestrador {
    let preparada = entrada;
    if (entrada.modelo === 'NFCE' && chave && this.adaptadores.buscarPortal) {
     const uf = ufDaChave(chave);
+    // Só a chave, em UF com captcha: não consulta o portal nem gasta IA com a página do captcha (#708).
+    if (!entrada.qrUrl && ufsQueExigemQr.has(uf)) throw new ErroLeitura('CHAVE_EXIGE_QR');
     const url = entrada.qrUrl ?? `https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaPublica.aspx?chNFe=${chave}`;
     const html = await this.adaptadores.buscarPortal(url, contexto.signal);
     preparada = { ...entrada, chaveAcesso: chave, pagina: { html, uf, leiaute: identificarLeiaute(html, uf) } };

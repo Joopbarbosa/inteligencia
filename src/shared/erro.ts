@@ -7,6 +7,9 @@ export function corpoErro(codigo: string) {
  codigo === 'ERRO_INTERNO' ? 'O serviço encontrou um erro inesperado.' :
  codigo === 'LIMITE_IA_ATINGIDO' ? 'O limite mensal de leituras por IA foi atingido.' :
  codigo === 'LIMITE_SIMULTANEAS' ? 'Há quatro leituras em andamento para este produto.' :
- codigo === 'IA_INDISPONIVEL' ? 'Os serviços de IA não conseguiram concluir a leitura.' : 'O documento não pôde ser lido com os dados enviados.',
- comoResolver: 'Confira os dados e tente novamente ou registre a compra à mão.', itens: [] as string[] };
+ codigo === 'IA_INDISPONIVEL' ? 'Os serviços de IA não conseguiram concluir a leitura.' :
+ codigo === 'CHAVE_EXIGE_QR' ? 'O portal da Fazenda deste estado exige um código de imagem (captcha) na consulta pela chave de acesso.' :
+ 'O documento não pôde ser lido com os dados enviados.',
+ comoResolver: codigo === 'CHAVE_EXIGE_QR' ? 'Use o QR code do cupom (pela câmera ou por uma foto) ou cole o link do QR code.' :
+ 'Confira os dados e tente novamente ou registre a compra à mão.', itens: [] as string[] };
 }
