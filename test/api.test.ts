@@ -109,3 +109,19 @@ it('#679: upload HTTP de QR gerado em PNG usa SP controlado e releitura usa cach
   expect(segunda.statusCode).toBe(200);expect(segunda.json().doCache).toBe(true);expect(busca).toHaveBeenCalledOnce();expect(inteligencia).not.toHaveBeenCalled();
  } finally { await real.close(); }
 });
+
+it('#678: quatro leituras simultâneas por chave; quinta recusa, concluídas liberam a taxa', async () => {
+ let liberar!: (nota: ReturnType<typeof lerXml>) => void;
+ const espera = new Promise<ReturnType<typeof lerXml>>(r => { liberar = r; });
+ const n = lerXml(xml);
+ const limitado = await criarApp({autenticar:async () => 'taxa-678',orquestrador:new Orquestrador({leitorUf:async()=>espera})});
+ await limitado.ready();
+ const requisicao = {method:'POST' as const,url:'/v1/leituras',headers,payload:{modelo:'NFCE',chaveAcesso:n.chaveAcesso}};
+ const ativas = [1,2,3,4].map(() => limitado.inject(requisicao));
+ try {
+  await new Promise(r => setTimeout(r,20));
+  const quinta = await limitado.inject(requisicao);expect(quinta.statusCode).toBe(400);expect(quinta.json().codigo).toBe('LIMITE_SIMULTANEAS');
+  liberar(n);for(const r of await Promise.all(ativas))expect(r.statusCode).toBe(200);
+  expect((await limitado.inject(requisicao)).statusCode).toBe(200);
+ } finally { liberar(n);await Promise.all(ativas);await limitado.close(); }
+});

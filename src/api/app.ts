@@ -4,11 +4,16 @@ import { z } from 'zod';
 import { entradaJsonSchema } from './leituras/schemas.js';
 import { Orquestrador, type EntradaLeitura } from '../leitura/orquestrador.js';
 import { ErroLeitura, corpoErro } from '../shared/erro.js';
-declare module 'fastify' { interface FastifyRequest { chaveClienteId: string } }
+declare module 'fastify' { interface FastifyRequest { chaveClienteId: string; liberarLeitura: (() => void) | null } }
 export interface OpcoesApp { autenticar: (chave: string) => Promise<string | undefined>; orquestrador?: Orquestrador }
 export async function criarApp(opcoes: OpcoesApp) {
  const app = Fastify({ bodyLimit: 1024 * 1024, logger: false, requestTimeout: 60_000 });
  app.decorateRequest('chaveClienteId', '');
+ app.decorateRequest('liberarLeitura', null);
+ const simultaneas = new Map<string,number>();
+ app.addHook('onResponse', async req => { req.liberarLeitura?.(); });
+ app.addHook('onRequestAbort', async req => { req.liberarLeitura?.(); });
+ app.addHook('onTimeout', async req => { req.liberarLeitura?.(); });
  const orquestrador = opcoes.orquestrador ?? new Orquestrador();
  await app.register(multipart, { limits: { files: 1, fields: 2, parts: 3, fileSize: 10 * 1024 * 1024 } });
  app.setErrorHandler((erro, _req, reply) => {
@@ -24,6 +29,14 @@ export async function criarApp(opcoes: OpcoesApp) {
    const bearer = req.headers.authorization?.match(/^Bearer ([0-9a-f]{64})$/);
    const id = bearer?.[1] ? await opcoes.autenticar(bearer[1]) : undefined;
    if (!id) throw new ErroLeitura('CHAVE_INVALIDA', 401);
+   if ((simultaneas.get(id) ?? 0) >= 4) throw new ErroLeitura('LIMITE_SIMULTANEAS');
+   simultaneas.set(id, (simultaneas.get(id) ?? 0) + 1);
+   let liberada = false;
+   req.liberarLeitura = () => {
+    if (liberada) return; liberada = true;
+    const restantes = (simultaneas.get(id) ?? 1) - 1;
+    if (restantes) simultaneas.set(id, restantes); else simultaneas.delete(id);
+   };
    req.chaveClienteId = id;
   }
  }, async (req) => {
