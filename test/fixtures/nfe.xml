@@ -1,0 +1,5 @@
+<NFe xmlns="http://www.portalfiscal.inf.br/nfe"><infNFe Id="NFe35261012ABCDEF000195550010000012341234567890" versao="4.00"><ide><cUF>35</cUF><mod>55</mod><nNF>1234</nNF><serie>1</serie><dhEmi>2026-10-04T10:30:00-03:00</dhEmi></ide><emit><CNPJ>12ABCDEF000195</CNPJ><xNome>Distribuidora Aurora</xNome><enderEmit><UF>SP</UF></enderEmit></emit>
+<det nItem="1"><prod><cProd>001</cProd><cEAN>SEM GTIN</cEAN><xProd>PAPEL COUCHE 250G A4 C/100</xProd><uCom>PCT</uCom><qCom>1.2500</qCom><vProd>38.1234</vProd><vDesc>2.1133</vDesc></prod></det>
+<det nItem="2"><prod><xProd>FITA  CETIM &amp; AZUL</xProd><qCom>2.0000</qCom><vProd>20.0017</vProd><vDesc>1.0016</vDesc></prod></det>
+<det nItem="3"><prod><xProd>Caneta GEL Preta</xProd><qCom>3.5000</qCom><vProd>7.5678</vProd></prod></det>
+<total><ICMSTot><vNF>61.9513</vNF><vDesc>4.3483</vDesc><vFrete>0.3333</vFrete><vSeg>0.1111</vSeg><vOutro>0.1623</vOutro></ICMSTot></total></infNFe></NFe>

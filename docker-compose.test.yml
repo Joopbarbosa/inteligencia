@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: ${DB_CONTAINER:?}
+    environment:
+      POSTGRES_DB: ${DB_NAME:?}
+      POSTGRES_USER: leitor
+      POSTGRES_PASSWORD: test-pocket-only
+    ports:
+      - "127.0.0.1:${DB_PORT:?}:5432"
+    volumes:
+      - dados-teste:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leitor -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+volumes:
+  dados-teste:
