@@ -2,7 +2,9 @@ import { load } from 'cheerio';
 import { createHash } from 'node:crypto';
 import { notaSchema, type NotaLida } from '../../api/leituras/schemas.js';
 import { identificarLeiaute } from '../leiaute.js';
-const classes = ['id:tabResult', 'class:txtTit','class:Rqtd','class:RUN','class:RvlUnit','class:valor'].sort();
+// Atributos de #tabResult na página real do portal (nota de 2026-10-05, OpenProject #707); o número da linha vira N.
+const classes = ['id:tabResult', 'id:Item + N', 'class:filterable', 'class:RCod', 'class:RUN', 'class:Rqtd', 'class:RvlUnit',
+ 'class:noWrap', 'class:txtTit', 'class:valor'].sort();
 export const LEIAUTE_SP = 'SP-' + createHash('sha256').update(classes.join('\n')).digest('hex').slice(0,16);
 function decimalPt(texto: string): string | undefined {
  const valor = texto.match(/(?:^|[^\d])([\d.]+,\d+|\d+)(?:\s|$)/)?.[1];
@@ -20,7 +22,8 @@ export function lerSp(html: string): NotaLida | undefined {
   const data = texto.match(/Emiss[aã]o:\s*(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}:\d{2}:\d{2})/i);
   const numero = texto.match(/N[uú]mero:\s*(\d+)/i)?.[1], serie = texto.match(/S[eé]rie:\s*(\d+)/i)?.[1];
   const itens = $('#tabResult tr').toArray().map(el => ({
-   nome: $(el).find('.txtTit').text().trim(), quantidade: decimalPt($(el).find('.Rqtd').text()),
+   // O nome vem só do span: a coluna do valor também tem a classe txtTit ("Vl. Total").
+   nome: $(el).find('span.txtTit').first().text().trim(), quantidade: decimalPt($(el).find('.Rqtd').text()),
    unidade: $(el).find('.RUN').text().replace(/^\s*UN\s*:\s*/i,'').trim(),
    valorFinal: decimalPt($(el).find('.valor').text())
   }));
