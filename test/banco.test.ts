@@ -46,3 +46,18 @@ it('CLI cria e revoga chave localmente, sem endpoint administrativo', async () =
  expect(revogar.status,revogar.stderr).toBe(0); expect(await chaves.autenticar(chave.chave)).toBeUndefined();
  const r = await app.inject({method:'POST',url:'/v1/chaves'}); expect(r.statusCode).toBe(404);
 });
+
+it('#679: cache persistente por chave, sem expiração, valida contrato e marca cache sem mudar método', async () => {
+ const { CachePostgres } = await import('../src/cache/notas.js');
+ const { lerXml } = await import('../src/leitores/xml/leitor.js');
+ const chave = '35' + '9'.repeat(42);
+ const nota = { ...lerXml(readFileSync(new URL('./fixtures/nfe.xml', import.meta.url))), chaveAcesso: chave };
+ const cache = new CachePostgres(db);
+ try {
+  await db.deleteFrom('nota_lida').where('chave_acesso','=',chave).execute();
+  expect(await cache.buscar(chave)).toBeUndefined(); await cache.guardar(nota);
+  expect(await new CachePostgres(db).buscar(chave)).toMatchObject({chaveAcesso:chave,doCache:true,metodo:'XML'});
+  await expect(cache.guardar({...nota,totalPago:'inválido'})).rejects.toThrow();
+  expect((await cache.buscar(chave))?.totalPago).toBe(nota.totalPago);
+ } finally { await db.deleteFrom('nota_lida').where('chave_acesso','=',chave).execute(); }
+});
