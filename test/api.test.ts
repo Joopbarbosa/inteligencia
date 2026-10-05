@@ -80,10 +80,32 @@ it('ponto de encaixe leitor UF precede IA', async () => {
 });
 it('sem adaptadores, link não faz busca externa nem IA', async () => {
  const o = new Orquestrador();
- await expect(o.ler({modelo:'NFCE',qrUrl:'https://portal'},{chaveClienteId:'chave',contaId:conta,signal:new AbortController().signal})).rejects.toThrow('LEITURA_IMPOSSIVEL');
+ await expect(o.ler({modelo:'NFCE',qrUrl:'https://portal'},{chaveClienteId:'chave',contaId:conta,signal:new AbortController().signal})).rejects.toThrow('PORTAL_NAO_PERMITIDO');
 });
 it('IA desligada não chama adaptador', async () => {
  const inteligencia = vi.fn();
  await expect(new Orquestrador({ia:inteligencia},false).ler({modelo:'NFE',arquivo:{dados:Buffer.from('imagem'),mime:'image/png'},confirmouEnvioIa:true},{chaveClienteId:'chave',contaId:conta,signal:new AbortController().signal})).rejects.toThrow('LEITURA_IMPOSSIVEL');
  expect(inteligencia).not.toHaveBeenCalled();
+});
+
+it('#679: upload HTTP de QR gerado em PNG usa SP controlado e releitura usa cache sem rede/IA', async () => {
+ const QRCode = await import('qrcode');
+ const { decodificarQr } = await import('../src/leitura/qr/decodificar.js');
+ const { CacheMemoria } = await import('../src/cache/notas.js');
+ const { lerSp } = await import('../src/leitores/sp/leitor.js');
+ const html = readFileSync(new URL('./fixtures/sp-controlado.html', import.meta.url), 'utf8');
+ const chaveNota = '35' + '1'.repeat(42);
+ const link = 'https://www.nfce.fazenda.sp.gov.br/qrcode?p=' + chaveNota + '|2|1|1|HASH';
+ const dados = await QRCode.toBuffer(link, { width: 640, margin: 4 });
+ const busca = vi.fn(async () => html), inteligencia = vi.fn();
+ const real = await criarApp({ autenticar: async () => 'produto-teste', orquestrador: new Orquestrador({
+  cache: new CacheMemoria(), decodificarQr, buscarPortal: busca,
+  leitorUf: async entrada => entrada.pagina ? lerSp(entrada.pagina.html) : undefined, ia: inteligencia
+ }, true) });
+ try {
+  const primeira = await real.inject({method:'POST',url:'/v1/leituras',...upload(dados,'NFCE','image/png','true')});
+  expect(primeira.statusCode).toBe(200);expect(validarNota(primeira.json())).toBe(true);expect(primeira.json().metodo).toBe('LEITOR_UF');
+  const segunda = await real.inject({method:'POST',url:'/v1/leituras',headers,payload:{modelo:'NFCE',qrUrl:link}});
+  expect(segunda.statusCode).toBe(200);expect(segunda.json().doCache).toBe(true);expect(busca).toHaveBeenCalledOnce();expect(inteligencia).not.toHaveBeenCalled();
+ } finally { await real.close(); }
 });

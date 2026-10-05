@@ -24,3 +24,11 @@ Comandos locais usam a CLI compilada em dist, disponível também na imagem sem 
 IA permanece desligada: servidor não instala adaptadores de IA/UF nesta tarefa.
 O orquestrador fornece entradas e contexto com conta, chave e AbortSignal aos futuros adaptadores.
 Cache, limites, SSRF, QR, IA, alertas e amostras permanecem nas tarefas designadas no plano.
+
+## #679 — Escolha de QR/PDF antes do código (2026-10-05)
+
+- QR: jsQR (JavaScript, RGBA, sem navegador) com sharp para JPEG/PNG, cache desligado e concorrência1. ZXing via WASM foi considerado, mas adiciona runtime/formatos que o QR fiscal não exige. Referência: https://github.com/cozmo/jsqr.
+- PDF: Poppler (`pdfinfo`, `pdftoppm`, depois `pdftotext` na #678), processos locais com tempo e páginas limitados. PDF.js/@napi-rs/canvas foi considerado (referência https://github.com/mozilla/pdf.js/tree/master/examples/node), mas requer heap/canvas/worker no processo Node; Poppler permite limitar processo e raster por tamanho sem browser. Instalar poppler-utils na imagem Alpine.
+- Experimento prévio em imagem node:24-alpine com limite 256 MiB, 1CPU: PNG640px 185ms, PDF raster1500px 381ms, ambos decodificaram o mesmo link; RSS Node final90.329.088 bytes, pico cgroup68.931.584 bytes (memória compartilhada pode não ser debitada integralmente ao cgroup). Sem OOM. Logs /tmp/leitor679-benchmark.jsonl e fixture controlada /tmp/codex679-bench. Não equivale a medição de todos os PDFs reais.
+- Processamento sequencial de QR; máximo10MB, imagem12MP e raster1500px, três primeiras páginas, subprocesso15s/página. Não instalar browser no leitor.
+- Gestor fornecerá o QR real de SP no roteiro final. Fixture sintética não prova leiaute do portal real; liberação em produção depende da validação real/VPS prevista em DT-NOVA-15.

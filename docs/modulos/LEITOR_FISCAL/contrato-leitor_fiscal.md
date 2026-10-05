@@ -49,3 +49,19 @@ DOCTYPE/ENTITY e XML incompleto são recusados. Desconto geral = desconto total 
 por item, com mínimo zero; acréscimos = frete + seguro + outras despesas.
 A #679 implementará busca segura, leitor de SP e cache; #678 ligará IA e limites.
 Prazo de execução da leitura: 60 s, sinal de cancelamento repassado aos adaptadores.
+
+## #679 — Implementação QR, portal e cache (2026-10-05)
+
+POST /v1/leituras mantém o OpenAPI publicado na #677. Link validado antes do cache: HTTPS443,
+host exato versionado, sem credenciais; chave de44 posições extraída de p/chNFe, UF pela chave.
+DNS valida TODOS os endereços e conexão fixa no IP público validado, SNI do portal; até3 redirects,
+2MB de HTML,15s, global4,host2 e1req/s, sem cookies. Recusas PORTAL_NAO_PERMITIDO.
+PNG/JPEG e PDF NFC-e decodificam QR no serviço (10MB,12MP,raster1500px,3 primeiras páginas).
+PDF/PNG/JPEG continuam exigindo confirmouEnvioIa. Sem QR segue ao encaixe de IA com aviso.
+Cache Postgres nota_lida (migração002), sem expiração, somente resultado validado; releitura
+marca doCache=true sem mudar metodo; serializa leituras da mesma chave no processo.
+XML NF-e sem IA e sem cache prévio continua igual; resultado válido é guardado após leitura.
+Leitor SP conservador, por assinatura de leiaute e dados obrigatórios. Nesta entrega comprovado
+somente sobre fixture controlada; cupom real fornecido pelo Gestor no teste final. Em produção,
+SP_LEITOR_LIBERADO=false até validar consulta real/VPS (DT-NOVA-15). Não alegar cobertura real
+aprovada. Chave/UF diferente da resposta bloqueia LEITURA_IMPOSSIVEL antes de gravar no cache.
