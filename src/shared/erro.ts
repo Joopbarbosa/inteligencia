@@ -1,3 +1,6 @@
+/** Códigos de erro que o serviço emite; o enum do `docs/openapi.yaml` e a tabela do contrato acompanham esta lista. */
+export const CODIGOS_ERRO = ['DOCUMENTO_INVALIDO','CONFIRMACAO_ENVIO_IA_AUSENTE','CHAVE_EXIGE_QR','PORTAL_NAO_PERMITIDO','LEITURA_IMPOSSIVEL',
+ 'IA_INDISPONIVEL','LIMITE_IA_ATINGIDO','LIMITE_SIMULTANEAS','CHAVE_INVALIDA','RECURSO_INEXISTENTE','ERRO_INTERNO'] as const;
 export class ErroLeitura extends Error {
  constructor(readonly codigo: string, readonly status = 400) { super(codigo); }
 }

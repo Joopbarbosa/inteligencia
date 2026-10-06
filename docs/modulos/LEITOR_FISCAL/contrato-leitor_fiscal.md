@@ -31,12 +31,23 @@ XML até 5 MB; demais arquivos até 10 MB. Campos desconhecidos e entradas simul
 | Código HTTP | `tipo` | Quando |
 |---|---|---|
 | 400 | BLOQUEIO | DOCUMENTO_INVALIDO: entrada, conta, XML ou multipart inválido, limite de tamanho ou dados obrigatórios ausentes |
-| 400 | BLOQUEIO | CONFIRMACAO_ENVIO_IA_AUSENTE: imagem ou PDF sem confirmação |
+| 400 | BLOQUEIO | CONFIRMACAO_ENVIO_IA_AUSENTE: imagem ou PDF sem `confirmouEnvioIa=true` |
 | 400 | BLOQUEIO | CHAVE_EXIGE_QR: NFC-e de UF cujo portal exige captcha na consulta pela chave (hoje SP), enviada só com a chave e sem cache. O portal e a IA não são chamados. Chave já lida antes pelo QR continua vindo do cache |
-| 400 | BLOQUEIO | LEITURA_IMPOSSIVEL: leitor externo/IA ainda não ligado na #677 |
+| 400 | BLOQUEIO | PORTAL_NAO_PERMITIDO: link do QR com esquema, porta ou host fora da lista de portais oficiais; recusado antes de qualquer consulta |
+| 400 | BLOQUEIO | LEITURA_IMPOSSIVEL: nenhum leitor próprio nem IA conseguiu uma nota coerente (página sem emitente ou tabela, portal que exige verificação humana, UF sem portal cadastrado, prazo de 60 s esgotado) |
+| 400 | BLOQUEIO | IA_INDISPONIVEL: a cadeia de provedores de IA esgotou sem resultado válido |
+| 400 | BLOQUEIO | LIMITE_IA_ATINGIDO: limite mensal de leituras por IA atingido, por conta (30) ou por chave de produto (2000); XML, cache e leitor próprio não contam. Código único para os dois tetos (ver decisão abaixo) |
+| 400 | BLOQUEIO | LIMITE_SIMULTANEAS: já há quatro leituras em andamento para a chave de produto |
 | 401 | BLOQUEIO | CHAVE_INVALIDA: chave ausente, inválida ou revogada |
 | 404 | BLOQUEIO | RECURSO_INEXISTENTE: rota inexistente |
 | 500 | BLOQUEIO | ERRO_INTERNO: mensagem genérica sem detalhe interno |
+
+O campo `codigo` é um enum fechado no `docs/openapi.yaml` (componente `Erro`), igual à lista acima.
+
+**Código do limite de IA (#725):** o serviço emite um único `LIMITE_IA_ATINGIDO` para o teto da conta e o da chave. A ESTRUTURA
+(DT-NOVA-1) e o mock do backend citam `LIMITE_IA_CONTA` e `LIMITE_IA_CHAVE`, mas o `LeitorFiscalClient` do backend não ramifica por
+`codigo`: repassa `tipo`, `titulo`, `motivo` e `comoResolver` de qualquer BLOQUEIO 400. Mantido o código real; a referência da
+ESTRUTURA fica por corrigir na Retomada.
 
 Erros sempre trazem `tipo`, `codigo`, `titulo`, `motivo`, `comoResolver`, `itens`.
 Textos ao usuário são **rascunhos**, sujeitos à validação do Gestor.

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
 import type { Banco } from '../db/conexao.js';
 export const hashChave = (chave: string) => createHash('sha256').update(chave).digest('hex');
@@ -17,9 +17,7 @@ export class Chaves {
  }
  async autenticar(chave: string) {
   const hash = hashChave(chave);
-  const registro = await this.db.selectFrom('chave_cliente').select(['id','hash','estado']).where('hash', '=', hash).executeTakeFirst();
-  const esperado = Buffer.from(registro?.hash ?? '0'.repeat(64), 'hex');
-  const igual = timingSafeEqual(Buffer.from(hash, 'hex'), esperado);
-  return igual && registro?.estado === 'ativa' ? registro.id : undefined;
+  const registro = await this.db.selectFrom('chave_cliente').select(['id','estado']).where('hash', '=', hash).executeTakeFirst();
+  return registro?.estado === 'ativa' ? registro.id : undefined;
  }
 }

@@ -13,7 +13,6 @@ export async function criarApp(opcoes: OpcoesApp) {
  const simultaneas = new Map<string,number>();
  app.addHook('onResponse', async req => { req.liberarLeitura?.(); });
  app.addHook('onRequestAbort', async req => { req.liberarLeitura?.(); });
- app.addHook('onTimeout', async req => { req.liberarLeitura?.(); });
  const orquestrador = opcoes.orquestrador ?? new Orquestrador();
  await app.register(multipart, { limits: { files: 1, fields: 2, parts: 3, fileSize: 10 * 1024 * 1024 } });
  app.setErrorHandler((erro, _req, reply) => {
