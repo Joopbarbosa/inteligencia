@@ -49,3 +49,11 @@ Cache, limites, SSRF, QR, IA, alertas e amostras permanecem nas tarefas designad
 - Worker60s, single-flight no processo e tentativa persistida antes do envio. Consulta sempre antes de criar (filtro subject contendo + igualdade exata local); busca incompleta recusa criar. Reenvio60s→1h, adoção do id remoto após resposta perdida. Sem configuração, envio desligado; coleta local continua.
 - Verificação de comentário no início: documentação oficial expõe addComment condicionado à permissão de notas. Usar link HAL somente da mesma origem/api/v3, aceitando method post/POST. Sem link, contador local basta. Reservar instante antes da tentativa de comentário limita a1tentativa/24h mesmo se resposta se perder; comentário perdido não perde contador local. Fontes: https://www.openproject.org/docs/api/endpoints/work-packages/ e https://www.openproject.org/docs/api/filters/. Nenhuma credencial comercial usada nem tarefa real de alerta criada durante testes.
 - Metadados enviados: UF/leiaute/motivo/data/contador/idlocal e comando CLI. Nunca HTML, conteúdo fiscal, CPF, chave de acesso ou endereço com chave. Erro remoto tratado no worker, sem afetar resposta fiscal.
+
+## #728 — Correções da QA da #680 (2026-10-06)
+
+- A composição de `server.ts` (cache, leitor da UF, IA atrás do limite, alerta de fallback) vive em `montarOrquestrador` (`src/leitura/composicao.ts`), usada pelo servidor e pelo teste de integração do fluxo CEN-NOVO-2/53. `Orquestrador` aceita `hostsPermitidos` só para o teste injetar um host de portal.
+- Alerta com página que perdeu emitente, CNPJ ou tabela: a amostra guarda um recorte mínimo (UF, leiaute, tamanho do HTML e estrutura de tags/ids/classes com números trocados por N; nenhum texto da página). O alerta nasce antes da chamada à IA.
+- **Decisão tomada sem consulta (Gestor confirma):** com o leitor desligado por política (produção sem `SP_LEITOR_LIBERADO=true`) o fallback não registra nada (nem alerta nem amostra), em vez de criar um motivo `LEITOR_DESLIGADO`, que exigiria migração do CHECK de `alerta.motivo`.
+- OpenProject: um só conjunto de variáveis (`OPENPROJECT_*`); `OPENPROJECT_PROJETO_ID` com padrão 9.
+- `vitest.config.ts` roda os arquivos de teste em sequência: os testes de banco compartilham a base e o worker de alertas lê todos os alertas pendentes.
