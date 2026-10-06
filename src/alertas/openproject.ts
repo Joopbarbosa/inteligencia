@@ -4,7 +4,7 @@ const tarefaSchema=z.object({id:z.number().int().positive(),subject:z.string(),_
 export const tituloAlerta=(a:Pick<Alerta,'uf'|'leiaute'>)=>`[LEITOR-FISCAL] - Mapear leitor da UF ${a.uf} (leiaute ${a.leiaute})`;
 export class OpenProject {
  private readonly base:URL;
- constructor(base:string,private readonly chave:string,private readonly tipoId:number,private readonly prioridadeId:number,private readonly enviar:typeof fetch=fetch){
+ constructor(base:string,private readonly chave:string,private readonly tipoId:number,private readonly prioridadeId:number,private readonly enviar:typeof fetch=fetch,private readonly projetoId:number=9){
   this.base=new URL(base);if(this.base.username||this.base.password||(!['https:'].includes(this.base.protocol)&&!(this.base.protocol==='http:'&&['localhost','127.0.0.1'].includes(this.base.hostname))))throw new Error('URL OpenProject inválida');
  }
  private async pedir(caminho:string,method='GET',body?:unknown){
@@ -15,11 +15,11 @@ export class OpenProject {
   return JSON.parse(Buffer.concat(partes).toString('utf8')) as unknown;
  }
  async obterOuCriar(a:Alerta){
-  const titulo=tituloAlerta(a);const query=new URLSearchParams({filters:JSON.stringify([{project:{operator:'=',values:['9']}},{subject:{operator:'~',values:[titulo]}}]),pageSize:'100'});
+  const titulo=tituloAlerta(a);const query=new URLSearchParams({filters:JSON.stringify([{project:{operator:'=',values:[String(this.projetoId)]}},{subject:{operator:'~',values:[titulo]}}]),pageSize:'100'});
   const lista=z.object({_embedded:z.object({elements:z.array(tarefaSchema)}),total:z.number().int().nonnegative()}).parse(await this.pedir('/api/v3/work_packages?'+query));
   const existente=lista._embedded.elements.find(t=>t.subject===titulo);if(existente)return existente.id;
   if(lista.total>lista._embedded.elements.length)throw new Error('Busca incompleta; não criar duplicata');
-  const criada=tarefaSchema.parse(await this.pedir('/api/v3/work_packages','POST',{subject:titulo,description:{format:'markdown',raw:`UF: ${a.uf}\nLeiaute: ${a.leiaute}\nMotivo: ${a.motivo}\nCriado em: ${a.criada_em.toISOString()}\nLeituras: ${a.contador}\nAlerta local: ${a.id}\nConsultar: npm run amostra:ver -- ${a.uf} ${a.leiaute}`},_links:{project:{href:'/api/v3/projects/9'},type:{href:'/api/v3/types/'+this.tipoId},priority:{href:'/api/v3/priorities/'+this.prioridadeId}}}));return criada.id;
+  const criada=tarefaSchema.parse(await this.pedir('/api/v3/work_packages','POST',{subject:titulo,description:{format:'markdown',raw:`UF: ${a.uf}\nLeiaute: ${a.leiaute}\nMotivo: ${a.motivo}\nCriado em: ${a.criada_em.toISOString()}\nLeituras: ${a.contador}\nAlerta local: ${a.id}\nConsultar: npm run amostra:ver -- ${a.uf} ${a.leiaute}`},_links:{project:{href:'/api/v3/projects/'+this.projetoId},type:{href:'/api/v3/types/'+this.tipoId},priority:{href:'/api/v3/priorities/'+this.prioridadeId}}}));return criada.id;
  }
  async comentar(tarefa:number,contador:number){
   const t=tarefaSchema.parse(await this.pedir('/api/v3/work_packages/'+tarefa));const link=t._links?.addComment;

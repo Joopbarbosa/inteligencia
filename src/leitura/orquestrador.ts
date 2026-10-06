@@ -16,6 +16,8 @@ export interface AdaptadoresLeitura {
  buscarPortal?: (url: string, signal: AbortSignal) => Promise<string>;
  decodificarQr?: (dados: Buffer, mime: string, signal: AbortSignal) => Promise<string | undefined>;
  cache?: CacheNotas;
+ /** Hosts de portal aceitos; o padrão é a lista oficial (`portais.json`). Só testes trocam. */
+ hostsPermitidos?: readonly string[];
  registrarFallback?: (pagina: NonNullable<EntradaLeitura['pagina']>) => Promise<void>;
 }
 export class Orquestrador {
@@ -39,8 +41,8 @@ export class Orquestrador {
    else avisoQr = true;
   }
   // Recusa antes de consultar cache; DNS só será resolvido se houver busca externa.
-  if (entrada.qrUrl) validarPortal(entrada.qrUrl);
-  const chave = entrada.qrUrl ? chaveDoQr(entrada.qrUrl) : entrada.chaveAcesso?.toUpperCase();
+  if (entrada.qrUrl) validarPortal(entrada.qrUrl, this.adaptadores.hostsPermitidos);
+  const chave = entrada.qrUrl ? chaveDoQr(entrada.qrUrl, this.adaptadores.hostsPermitidos) : entrada.chaveAcesso?.toUpperCase();
   if (chave) ufDaChave(chave);
   const realizar = async () => {
    const cached = chave ? await this.adaptadores.cache?.buscar(chave) : undefined;

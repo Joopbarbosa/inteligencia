@@ -34,3 +34,11 @@ com limite de 256 MB. Migrações são aplicadas ao iniciar; banco pertence ao s
 Copiar .env.example para .env e preencher banco/segredos antes da subida.
 IA_HABILITADA=0; #677 lê XML, demais entradas respondem bloqueio até #679/#678.
 Imagem/PDF exigem confirmação de envio à IA mesmo antes de adaptadores instalados.
+
+## Alertas no OpenProject
+
+Leitor próprio que falha ou UF sem leitor grava um alerta local (com amostra sanitizada) e, se configurado, abre uma tarefa
+"Mapear leitor da UF" por UF e leiaute. Um só conjunto de variáveis: `OPENPROJECT_URL`, `OPENPROJECT_API_KEY`,
+`OPENPROJECT_TIPO_TAREFA_ID`, `OPENPROJECT_PRIORIDADE_NORMAL_ID` e `OPENPROJECT_PROJETO_ID` (padrão 9, projeto inteligencia).
+Sem `OPENPROJECT_URL` e `OPENPROJECT_API_KEY` nada é enviado. Em produção, com `SP_LEITOR_LIBERADO` diferente de `true` o leitor de SP
+fica desligado e essas leituras não geram alerta nem tarefa.
