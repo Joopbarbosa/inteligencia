@@ -1,14 +1,32 @@
 import {randomUUID,createHash} from 'node:crypto';
 import {sql,type Kysely} from 'kysely';
 import type {Banco} from '../db/conexao.js';
+import {load} from 'cheerio';
 import {recortarPagina} from '../seguranca/removerCpf.js';
+import {ErroLeitura} from '../shared/erro.js';
 export type MotivoAlerta='UF_SEM_LEITOR'|'LEITOR_FALHOU';
 export interface Alerta {id:string;uf:string;leiaute:string;motivo:MotivoAlerta;contador:number;tentativas:number;tarefa_id:number|null;criada_em:Date;ultimo_comentario:Date|null}
+/** Recorte mínimo quando o leiaute mudou tanto que emitente, CNPJ ou tabela sumiram: só UF, leiaute e a estrutura (tags, ids e classes, números trocados por N), nunca texto da página. */
+function recorteMinimo(pagina:{html:string;uf:string;leiaute:string}){
+ const $=load(pagina.html);const estrutura=new Set<string>();
+ $('body, body *').each((_i,el)=>{
+  if(estrutura.size>=300)return;
+  const t=el as {tagName?:string};
+  const id=($(el).attr('id')??'').replace(/\d+/g,'N').replace(/[^\w +-]/g,'');
+  const classes=($(el).attr('class')??'').split(/\s+/).filter(Boolean).map(c=>c.replace(/\d+/g,'N').replace(/[^\w-]/g,'')).join('.');
+  estrutura.add((t.tagName??'?')+(id?'#'+id:'')+(classes?'.'+classes:''));
+ });
+ return `Recorte mínimo: a página perdeu emitente, CNPJ ou tabela de itens.\nUF: ${pagina.uf}\nLeiaute: ${pagina.leiaute}\nTamanho do HTML: ${pagina.html.length}\nEstrutura:\n${[...estrutura].sort().join('\n')}`;
+}
+function recortarParaAmostra(pagina:{html:string;uf:string;leiaute:string}){
+ try{return recortarPagina(pagina.html);}
+ catch(erro){if(erro instanceof ErroLeitura)return recorteMinimo(pagina);throw erro;}
+}
 export class Alertas {
  constructor(private readonly db:Kysely<Banco>){}
  async registrar(pagina:{html:string;uf:string;leiaute:string},motivo:MotivoAlerta){
   if(!/^[A-Z]{2}$/.test(pagina.uf)||!new RegExp('^'+pagina.uf+'-[a-zA-Z0-9-]{1,80}$').test(pagina.leiaute))throw new Error('Identificador de leiaute inválido');
-  const texto=recortarPagina(pagina.html).replace(/https?:\/\/\S+/gi,'[endereço removido]');
+  const texto=recortarParaAmostra(pagina).replace(/https?:\/\/\S+/gi,'[endereço removido]');
   const conteudo='<pre>'+texto.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</pre>';
   const resumo=createHash('sha256').update(conteudo).digest('hex');
   return this.db.transaction().execute(async tx=>{
