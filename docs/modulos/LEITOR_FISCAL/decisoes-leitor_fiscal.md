@@ -42,6 +42,13 @@ Cache, limites, SSRF, QR, IA, alertas e amostras permanecem nas tarefas designad
 - Até quatro leituras HTTP simultâneas por chave; quinta retorna erro estruturado. Logs contêm somente provedor, modelo, tokens e custo estimado configurável, sem documento, chave de API ou conta. Sem preço configurado, custo é null, sem estimativa inventada.
 - Evidência: 106 testes, incluindo servidor HTTP IA local real, reservas concorrentes em PostgreSQL, fronteira mensal, confirmação e privacidade. Provedores comerciais não foram chamados; validação funcional real permanece no roteiro final.
 
+## #727 — Correções da QA da #679 (2026-10-06)
+
+- Consulta por chave resolve a URL por UF em `portaisPorChave` (`src/leitores/registro.ts`); só SP cadastrada (escopo atual do Gestor: "precisa verificar todos os estados" fica para depois). UF sem entrada responde `LEITURA_IMPOSSIVEL` sem tocar a rede.
+- Cache global só recebe nota lida da página do portal (link/QR validado ou consulta por chave cadastrada) com a chave conferida, ou XML com assinatura digital. Resultado de IA lido de foto/PDF nunca entra. **Limitação:** "XML assinado" é presença de `SignatureValue` xmldsig, não verificação criptográfica; verificação real (cadeia ICP-Brasil) fica para decisão do Gestor.
+- O aviso "O QR não pôde ser lido..." é acrescentado depois de gravar no cache.
+- `chaveAcesso` de entrada passa por `toUpperCase` antes do regex; o regex de saída (`notaSchema`) segue só maiúsculas.
+
 ## #680 — Amostras e alertas (2026-10-05)
 
 - Migração004 após003. Alerta parcial único por UF/leiaute ABERTO; upsert transacional incrementa contador e insere amostra por SHA256, sem duplicar HTML sanitizado idêntico. HTML persistido é somente texto do emitente/itens escapado em pre, CPF/endereço removidos. Foto/PDF/XML/cache/leitor próprio não geram amostras.
