@@ -3,7 +3,7 @@
   "info": {
     "title": "leitor-fiscal",
     "version": "0.16.0",
-    "description": "Contrato DT-NOVA-1. Textos de erros e avisos são rascunhos até validação do Gestor. XML máximo 5 MB; imagens/PDF máximo 10 MB. Imagem e PDF exigem confirmouEnvioIa=true. Leituras síncronas, prazo máximo 60 segundos. Leitores externos e IA serão ligados nas tarefas #679/#678; sem adaptador, responde LEITURA_IMPOSSIVEL."
+    "description": "Contrato DT-NOVA-1. Textos de erros e avisos são rascunhos até validação do Gestor. XML máximo 5 MB; imagens/PDF máximo 10 MB. Imagem e PDF exigem confirmouEnvioIa=true. Leituras síncronas, prazo máximo 60 segundos. O limite mensal de leituras por IA (conta e chave de produto) responde LIMITE_IA_ATINGIDO."
   },
   "paths": {
     "/saude": {
@@ -365,7 +365,20 @@
             ]
           },
           "codigo": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "DOCUMENTO_INVALIDO",
+              "CONFIRMACAO_ENVIO_IA_AUSENTE",
+              "CHAVE_EXIGE_QR",
+              "PORTAL_NAO_PERMITIDO",
+              "LEITURA_IMPOSSIVEL",
+              "IA_INDISPONIVEL",
+              "LIMITE_IA_ATINGIDO",
+              "LIMITE_SIMULTANEAS",
+              "CHAVE_INVALIDA",
+              "RECURSO_INEXISTENTE",
+              "ERRO_INTERNO"
+            ]
           },
           "titulo": {
             "type": "string"
