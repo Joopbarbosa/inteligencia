@@ -4,7 +4,8 @@ export interface ConteudoIa { texto?: string | undefined; arquivo?: {dados: Buff
 export interface ResultadoIa { json: string; entradaTokens: number; saidaTokens: number }
 export interface ProvedorIa { nome: string; modelo: string; ler(conteudo: ConteudoIa, instrucao: string, signal: AbortSignal): Promise<ResultadoIa> }
 export interface ConfigProvedor { nome: string; modelo: string; urlBase: string; chave: string; tipo: 'openai-compativel' | 'anthropic' }
-export class FalhaProvedor extends Error { constructor(readonly repetir: boolean) { super('FALHA_PROVEDOR'); } }
+/** `repetir`: a cadeia segue ao próximo provedor. `status`: HTTP da resposta, quando houve. */
+export class FalhaProvedor extends Error { constructor(readonly repetir: boolean, readonly status?: number) { super('FALHA_PROVEDOR'); } }
 const tokens = z.number().int().nonnegative().max(1_000_000_000);
 const compativel = z.object({ choices:z.array(z.object({message:z.object({content:z.string()})})).min(1),
  usage:z.object({prompt_tokens:tokens,completion_tokens:tokens}) });
@@ -49,7 +50,7 @@ export function criarProvedor(config: ConfigProvedor, enviar: typeof fetch = fet
   let resposta: Response;
   try { resposta=await enviar(url,{method:'POST',headers,body:JSON.stringify(payload),signal,redirect:'error'}); }
   catch { signal.throwIfAborted();throw new FalhaProvedor(true); }
-  if(!resposta.ok) { await resposta.body?.cancel().catch(()=>undefined);throw new FalhaProvedor(resposta.status===429 || resposta.status>=500); }
+  if(!resposta.ok) { await resposta.body?.cancel().catch(()=>undefined);throw new FalhaProvedor([401,403,429].includes(resposta.status) || resposta.status>=500,resposta.status); }
   try {
    const dados=await jsonLimitado(resposta);
    if(config.tipo === 'anthropic') {

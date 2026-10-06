@@ -8,9 +8,12 @@ import { ErroLeitura } from '../shared/erro.js';
 import { ufDaChave } from '../leitura/chave.js';
 const schemaTexto = notaSchema.pick({emitente:true,itens:true});
 export interface LogUsoIa { provedor:string;modelo:string;entradaTokens:number;saidaTokens:number;custoEstimadoUsd:number|null }
+/** Falha de um provedor da cadeia; só identifica provedor, modelo e HTTP (nada do documento). */
+export interface LogFalhaIa { provedor:string;modelo:string;status:number|null }
 export class CadeiaIa {
  constructor(private readonly provedores: readonly ProvedorIa[],private readonly log: (uso: LogUsoIa) => void = () => undefined,
-  private readonly prazoMs = 20_000, private readonly precos: Readonly<Record<string,{entrada:number;saida:number}>> = {}) {}
+  private readonly prazoMs = 20_000, private readonly precos: Readonly<Record<string,{entrada:number;saida:number}>> = {},
+  private readonly logFalha: (falha: LogFalhaIa) => void = () => undefined) {}
  async ler(entrada: EntradaLeitura,contexto: ContextoLeitura): Promise<NotaLida> {
   const preparado=await prepararIa(entrada,contexto.signal);
   const schema=preparado.metadados?schemaTexto:notaSchema;
@@ -30,7 +33,10 @@ export class CadeiaIa {
     return nota;
    } catch(erro) {
     contexto.signal.throwIfAborted();
-    if(erro instanceof FalhaProvedor && !erro.repetir)break;
+    if(erro instanceof FalhaProvedor) {
+     this.logFalha({provedor:provedor.nome,modelo:provedor.modelo,status:erro.status??null});
+     if(!erro.repetir)break;
+    }
    }
   }
   throw new ErroLeitura('IA_INDISPONIVEL');

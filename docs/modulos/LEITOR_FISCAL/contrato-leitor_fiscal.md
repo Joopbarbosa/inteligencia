@@ -72,7 +72,8 @@ aprovada. Chave/UF diferente da resposta bloqueia LEITURA_IMPOSSIVEL antes de gr
 Mantém POST /v1/leituras e nota/erro OpenAPI. IA desligada por padrão (`IA_HABILITADA=0`);
 produção só liga após política #675. Cadeia compatívelOpenAI (deepseek-flash primário) e
 AnthropicMessages (fallback), configurada por ambiente. Tentativa20s, resposta validadazod;
-timeout/5xx/429/schema inválido seguem ao próximo. Esgotada retorna IA_INDISPONIVEL.
+timeout/5xx/429/401/403/schema inválido seguem ao próximo (a falha vai ao log só com provedor, modelo e HTTP);
+400 interrompe a cadeia. Esgotada retorna IA_INDISPONIVEL.
 Texto do portal enviado à IA contém só emitente e itens, CPF removido. Metadatafiscal obrigatória
 (chave, número, série, emissão, total) extraída localmente e incorporada após extração dos itens;
 não depende de a IA inventar metadados que não foram enviados. Se não for possível extrair

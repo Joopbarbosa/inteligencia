@@ -13,5 +13,6 @@ export function configurarIa(env: NodeJS.ProcessEnv = process.env): CadeiaIa | u
   const entrada=env[`IA_PROVEDOR_${p}_PRECO_ENTRADA_USD_MILHAO`],saida=env[`IA_PROVEDOR_${p}_PRECO_SAIDA_USD_MILHAO`];
   if(entrada?.trim() && saida?.trim())precos[p.toLowerCase()]={entrada:z.coerce.number().nonnegative().parse(entrada),saida:z.coerce.number().nonnegative().parse(saida)};
  }
- return new CadeiaIa(configs.map(c=>criarProvedor(c)),uso=>process.stdout.write(JSON.stringify({evento:'uso_ia',...uso})+'\n'),20_000,precos);
+ return new CadeiaIa(configs.map(c=>criarProvedor(c)),uso=>process.stdout.write(JSON.stringify({evento:'uso_ia',...uso})+'\n'),20_000,precos,
+  falha=>process.stdout.write(JSON.stringify({evento:'falha_provedor_ia',...falha})+'\n'));
 }
