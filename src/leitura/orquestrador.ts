@@ -1,10 +1,10 @@
 import { notaSchema, type NotaLida } from '../api/leituras/schemas.js';
-import { lerXml } from '../leitores/xml/leitor.js';
+import { lerXml, xmlAssinado } from '../leitores/xml/leitor.js';
 import { ErroLeitura } from '../shared/erro.js';
 import { validarPortal } from '../seguranca/buscaSegura.js';
 import { chaveDoQr, ufDaChave } from './chave.js';
 import { identificarLeiaute } from '../leitores/leiaute.js';
-import { ufsQueExigemQr } from '../leitores/registro.js';
+import { portaisPorChave, ufsQueExigemQr } from '../leitores/registro.js';
 import type { CacheNotas } from '../cache/notas.js';
 export interface EntradaLeitura { modelo: 'NFE' | 'NFCE'; qrUrl?: string | undefined; chaveAcesso?: string | undefined;
  arquivo?: { dados: Buffer; mime: string } | undefined; confirmouEnvioIa?: boolean | undefined;
@@ -26,7 +26,10 @@ export class Orquestrador {
   const mime = entrada.arquivo?.mime;
   if (mime === 'application/xml' || mime === 'text/xml') {
    if (entrada.modelo !== 'NFE') throw new ErroLeitura('DOCUMENTO_INVALIDO');
-   const nota = lerXml(entrada.arquivo!.dados); await this.adaptadores.cache?.guardar(nota); return nota;
+   const nota = lerXml(entrada.arquivo!.dados);
+   // O XML sem assinatura digital não prova a chave: não entra no cache global (#679).
+   if (xmlAssinado(entrada.arquivo!.dados)) await this.adaptadores.cache?.guardar(nota);
+   return nota;
   }
   if (entrada.arquivo && !entrada.confirmouEnvioIa) throw new ErroLeitura('CONFIRMACAO_ENVIO_IA_AUSENTE');
   let avisoQr = false;
@@ -47,7 +50,8 @@ export class Orquestrador {
     const uf = ufDaChave(chave);
     // Só a chave, em UF com captcha: não consulta o portal nem gasta IA com a página do captcha (#708).
     if (!entrada.qrUrl && ufsQueExigemQr.has(uf)) throw new ErroLeitura('CHAVE_EXIGE_QR');
-    const url = entrada.qrUrl ?? `https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaPublica.aspx?chNFe=${chave}`;
+    const url = entrada.qrUrl ?? portaisPorChave[uf]?.(chave);
+    if (!url) throw new ErroLeitura('LEITURA_IMPOSSIVEL'); // UF sem portal cadastrado: nenhuma consulta
     const html = await this.adaptadores.buscarPortal(url, contexto.signal);
     preparada = { ...entrada, chaveAcesso: chave, pagina: { html, uf, leiaute: identificarLeiaute(html, uf) } };
    }
@@ -65,8 +69,10 @@ export class Orquestrador {
    }
    if (!nota) throw new ErroLeitura('LEITURA_IMPOSSIVEL');
    if (chave && (nota.chaveAcesso !== chave || nota.uf !== ufDaChave(chave))) throw new ErroLeitura('LEITURA_IMPOSSIVEL');
+   // Só nota lida da página do portal, para a chave conferida, entra no cache; resultado de IA lido de foto/PDF nunca (#679).
+   if (preparada.pagina) await this.adaptadores.cache?.guardar(nota);
    if (avisoQr) nota = { ...nota, avisos: [...nota.avisos, 'O QR não pôde ser lido; a leitura foi feita pela imagem.'] };
-   await this.adaptadores.cache?.guardar(nota); return nota;
+   return nota;
   };
   if (!chave) return realizar();
   const anterior = this.emCurso.get(chave);
