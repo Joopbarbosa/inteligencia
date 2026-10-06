@@ -9,8 +9,8 @@ export function ufDaChave(chave: string): string {
  const uf = ufs[chave.slice(0,2)];
  if (!valida.success || !uf) throw new ErroLeitura('DOCUMENTO_INVALIDO'); return uf;
 }
-export function chaveDoQr(texto: string): string {
- const url = validarPortal(texto);
+export function chaveDoQr(texto: string, permitidos?: readonly string[]): string {
+ const url = validarPortal(texto, permitidos);
  const p = url.searchParams.get('p');
  const chave = (p?.split('|')[0] ?? url.searchParams.get('chNFe') ?? '').toUpperCase();
  ufDaChave(chave); return chave;
