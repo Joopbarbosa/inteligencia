@@ -15,7 +15,7 @@ const contexto = () => ({ chaveClienteId: randomUUID(), contaId: randomUUID(), s
 const html = readFileSync(new URL('./fixtures/sp-controlado.html', import.meta.url), 'utf8');
 const montar = (extra: { cache?: CacheMemoria } = {}) => {
  const buscarPortal = vi.fn(async () => html), ia = vi.fn(), leitorUf = vi.fn(async (e: EntradaLeitura) => e.pagina ? lerSp(e.pagina.html) : undefined);
- return { buscarPortal, ia, leitorUf, orquestrador: new Orquestrador({ buscarPortal, ia, leitorUf, ...extra }, true) };
+ return { buscarPortal, ia, leitorUf, orquestrador: new Orquestrador({ buscarPortal, ia, leitorUf, ...extra }) };
 };
 
 describe('#708: NFC-e de SP só pela chave', () => {

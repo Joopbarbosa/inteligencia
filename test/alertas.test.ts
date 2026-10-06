@@ -66,9 +66,9 @@ it('link de comentário externo não recebe credencial; API sem addComment é op
 it('só fallback do portal gera amostra; cache/leitorUF/XML/foto não geram alerta',async()=>{
  const nota=lerSp(html)!;const registrar=vi.fn(async()=>{});const cache=new CacheMemoria();const ctx={chaveClienteId:randomUUID(),contaId:randomUUID(),signal:new AbortController().signal};
  const qrUrl='https://www.nfce.fazenda.sp.gov.br/qrcode?p='+nota.chaveAcesso+'|2|1|1|HASH';
- const orq=new Orquestrador({cache,buscarPortal:async()=>html,ia:async()=>nota,registrarFallback:registrar},true);
+ const orq=new Orquestrador({cache,buscarPortal:async()=>html,ia:async()=>nota,registrarFallback:registrar});
  await orq.ler({modelo:'NFCE',qrUrl},ctx);await orq.ler({modelo:'NFCE',qrUrl},ctx);expect(registrar).toHaveBeenCalledOnce();
- await new Orquestrador({buscarPortal:async()=>html,leitorUf:async()=>nota,registrarFallback:registrar},true).ler({modelo:'NFCE',qrUrl},ctx);
+ await new Orquestrador({buscarPortal:async()=>html,leitorUf:async()=>nota,registrarFallback:registrar}).ler({modelo:'NFCE',qrUrl},ctx);
  await orq.ler({modelo:'NFE',arquivo:{dados:readFileSync(new URL('./fixtures/nfe.xml',import.meta.url)),mime:'application/xml'}},ctx);
  await orq.ler({modelo:'NFE',confirmouEnvioIa:true,arquivo:{dados:Buffer.from('imagem'),mime:'image/png'}},ctx);expect(registrar).toHaveBeenCalledOnce();
 });

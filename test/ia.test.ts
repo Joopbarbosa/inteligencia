@@ -4,7 +4,7 @@ import {createServer} from 'node:http';
 import {it,expect,vi} from 'vitest';
 import QRCode from 'qrcode';
 import {PDFDocument,StandardFonts} from 'pdf-lib';
-import {CadeiaIa, type LogUsoIa} from '../src/ia/cadeia.js';
+import {CadeiaIa, type LogUsoIa, type LogFalhaIa} from '../src/ia/cadeia.js';
 import {criarProvedor,FalhaProvedor,type ProvedorIa} from '../src/ia/adaptadores.js';
 import {prepararIa} from '../src/ia/preparar.js';
 import {removerCpf,recortarPagina} from '../src/seguranca/removerCpf.js';
@@ -56,7 +56,7 @@ it.each(['json','schema','timeout','5xx','429'])('fallback após %s; schema gara
  const n=await new CadeiaIa([provedor(primeiro),{...provedor(segundo),nome:'fallback'}],()=>undefined,20).ler(foto,contexto());
  expect(primeiro).toHaveBeenCalledOnce();expect(segundo).toHaveBeenCalledOnce();expect(n.metodo).toBe('IA');expect(n.origem).toBe('NFE_FOTO');expect(n.itens[0]?.nome).toBe(nota.itens[0]?.nome);expect(n.itens[0]?.valorFinal).toBe(nota.itens[0]?.valorFinal);
 });
-it('400/credencial não retenta; esgotada/aborto não envia mais',async()=>{
+it('400 não passa ao próximo provedor; esgotada/aborto não envia mais',async()=>{
  const proximo=vi.fn(async()=>saida());
  await expect(new CadeiaIa([provedor(vi.fn(async()=>{throw new FalhaProvedor(false);})),provedor(proximo)]).ler(foto,contexto())).rejects.toThrow('IA_INDISPONIVEL');expect(proximo).not.toHaveBeenCalled();
  await expect(new CadeiaIa([provedor(vi.fn(async()=>({...saida(),json:'{}'})))]).ler(foto,contexto())).rejects.toThrow('IA_INDISPONIVEL');
@@ -81,10 +81,10 @@ it('adaptadores HTTP compatível e Anthropic usam payload/headers e tokens corre
  const pdf=Buffer.from('%PDF-fixture');await criarProvedor({...cfg,tipo:'anthropic',urlBase:'https://api.anthropic.com/v1'},anth).ler({arquivo:{dados:pdf,mime:'application/pdf'}},'instrucao',contexto().signal);
  const payload=JSON.parse(anth.mock.calls[0]![1]!.body as string);expect(payload.messages[0].content[1]).toEqual({type:'document',source:{type:'base64',media_type:'application/pdf',data:pdf.toString('base64')}});
 });
-it.each([429,500,503,400,401])('status HTTP %s determina fallback',async status=>{
+it.each([[429,true],[500,true],[503,true],[401,true],[403,true],[400,false]])('status HTTP %s: segue ao próximo provedor = %s',async(status,segue)=>{
  const enviar=vi.fn<typeof fetch>(async()=>new Response('{}',{status}));
  try {await criarProvedor({nome:'p',modelo:'m',urlBase:'https://api.deepseek.com/v1',chave:'ficticia',tipo:'openai-compativel'},enviar).ler({texto:'emitente e itens'},'instrucao',contexto().signal);expect.fail('Deveria falhar');}
- catch(e){expect(e).toBeInstanceOf(FalhaProvedor);expect((e as FalhaProvedor).repetir).toBe(status===429 || status>=500);}
+ catch(e){expect(e).toBeInstanceOf(FalhaProvedor);expect((e as FalhaProvedor).repetir).toBe(segue);expect((e as FalhaProvedor).status).toBe(status);}
 });
 it('PDF textual remove CPF; PDF escaneado/imagem preserva original com confirmação',async()=>{
  const doc=await PDFDocument.create();const page=doc.addPage();const font=await doc.embedFont(StandardFonts.Helvetica);page.drawText('Emitente Aurora CNPJ 12345678000190\nCPF 123.456.789-09\nITENS Papel A4 17,43',{font,size:12});
@@ -96,4 +96,16 @@ it('PDF textual remove CPF; PDF escaneado/imagem preserva original com confirma�
 it('IA desligada não exige credenciais; configuração explícita valida URLs/credenciais',()=>{
  expect(configurarIa({IA_HABILITADA:'0'})).toBeUndefined();expect(()=>configurarIa({IA_HABILITADA:'1'})).toThrow();
  expect(()=>criarProvedor({nome:'p',modelo:'m',urlBase:'http://endereco-inseguro/v1',chave:'x',tipo:'anthropic'})).toThrow();
+});
+it.each([401,403])('#726 achado 4: %s do provedor primário passa ao próximo da cadeia e registra falha sem dado do documento',async status=>{
+ const primeiro=vi.fn(async()=>{throw new FalhaProvedor(true,status);});const segundo=vi.fn(async()=>saida());
+ const falhas: LogFalhaIa[]=[];
+ const n=await new CadeiaIa([provedor(primeiro),{...provedor(segundo),nome:'fallback',modelo:'claude-teste'}],()=>undefined,20_000,{},f=>falhas.push(f)).ler(foto,contexto());
+ expect(n.metodo).toBe('IA');expect(primeiro).toHaveBeenCalledOnce();expect(segundo).toHaveBeenCalledOnce();
+ expect(falhas).toEqual([{provedor:'primario',modelo:'deepseek-flash',status}]);
+ expect(JSON.stringify(falhas)).not.toContain(nota.emitente.nome);expect(JSON.stringify(falhas)).not.toContain(nota.chaveAcesso);
+});
+it('#726 achado 4: 401 em todos os provedores esgota a cadeia em IA_INDISPONIVEL',async()=>{
+ const sempre=()=>vi.fn(async()=>{throw new FalhaProvedor(true,401);});
+ await expect(new CadeiaIa([provedor(sempre()),provedor(sempre())]).ler(foto,contexto())).rejects.toThrow('IA_INDISPONIVEL');
 });

@@ -42,6 +42,13 @@ Cache, limites, SSRF, QR, IA, alertas e amostras permanecem nas tarefas designad
 - Até quatro leituras HTTP simultâneas por chave; quinta retorna erro estruturado. Logs contêm somente provedor, modelo, tokens e custo estimado configurável, sem documento, chave de API ou conta. Sem preço configurado, custo é null, sem estimativa inventada.
 - Evidência: 106 testes, incluindo servidor HTTP IA local real, reservas concorrentes em PostgreSQL, fronteira mensal, confirmação e privacidade. Provedores comerciais não foram chamados; validação funcional real permanece no roteiro final.
 
+## #726 — Correções da QA da #678 (2026-10-06)
+
+- **Decisão tomada sem consulta (Gestor confirma):** 401/403 do provedor passam ao próximo da cadeia e a falha é registrada em log (`falha_provedor_ia`: provedor, modelo, HTTP; nunca documento, chave ou conta). Disponibilidade pesa mais que parar na primeira credencial vencida; a ESTRUTURA DT-NOVA-5 listava só timeout, 5xx, 429 e schema. 400 continua interrompendo a cadeia.
+- `decimalPt` e a leitura de Emissão/Número/Série/Descontos/Acréscimos vivem em `src/leitores/cabecalho.ts`, usados pelo leitor de SP e pelo preparo da IA.
+- Parâmetro `iaHabilitada` do Orquestrador removido: IA habilitada = existe o adaptador `ia` (`src/leitura/composicao.ts`, mesma composição de `server.ts`).
+- Textos de `CONFIRMACAO_ENVIO_IA_AUSENTE` e `PORTAL_NAO_PERMITIDO` escritos como rascunho; dependem de validação do Gestor.
+
 ## #680 — Amostras e alertas (2026-10-05)
 
 - Migração004 após003. Alerta parcial único por UF/leiaute ABERTO; upsert transacional incrementa contador e insere amostra por SHA256, sem duplicar HTML sanitizado idêntico. HTML persistido é somente texto do emitente/itens escapado em pre, CPF/endereço removidos. Foto/PDF/XML/cache/leitor próprio não geram amostras.

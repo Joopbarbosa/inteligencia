@@ -3,7 +3,8 @@ import { conectar } from './db/conexao.js';
 import { migrar } from './db/migrar.js';
 import { Chaves } from './autenticacao/chaves.js';
 import { criarApp } from './api/app.js';
-import { Orquestrador, type EntradaLeitura, type ContextoLeitura } from './leitura/orquestrador.js';
+import { Orquestrador } from './leitura/orquestrador.js';
+import { comporIa } from './leitura/composicao.js';
 import { CachePostgres } from './cache/notas.js';
 import { BuscaSegura } from './seguranca/buscaSegura.js';
 import { decodificarQr } from './leitura/qr/decodificar.js';
@@ -30,14 +31,13 @@ try {
  const limites = new LimitesIa(db, numeroLimite.parse(process.env.LIMITE_IA_MENSAL_POR_CONTA || '30'),
   numeroLimite.parse(process.env.LIMITE_IA_MENSAL_POR_CHAVE || '2000'));
  const orquestrador = new Orquestrador({
-  ...(cadeia ? { ia: (entrada: EntradaLeitura, contexto: ContextoLeitura) =>
-   limites.executar(contexto, () => cadeia.ler(entrada, contexto)) } : {}), cache: new CachePostgres(db), decodificarQr,
+  ...(cadeia ? { ia: comporIa(limites, cadeia) } : {}), cache: new CachePostgres(db), decodificarQr,
   buscarPortal: (url, signal) => busca.buscar(url, signal),
   registrarFallback: async pagina => { await alertas.registrar(pagina, leitores[pagina.uf] ? 'LEITOR_FALHOU' : 'UF_SEM_LEITOR'); },
   leitorUf: async entrada => {
    if (process.env.NODE_ENV === 'production' && process.env.SP_LEITOR_LIBERADO !== 'true') return undefined;
    return entrada.pagina ? leitores[entrada.pagina.uf]?.(entrada.pagina.html) : undefined;
-  } }, Boolean(cadeia));
+  } });
  const app = await criarApp({ autenticar: chave => chaves.autenticar(chave), orquestrador });
  const envio = setInterval(() => { void worker?.executar().catch(() => undefined); }, 60_000);
  const limpeza = setInterval(() => { void alertas.limpar().catch(() => undefined); }, 86_400_000);

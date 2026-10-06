@@ -21,7 +21,7 @@ it('leiaute novo/dado obrigatório ausente declara falha; diferença de soma nã
 });
 it('CEN3,4: uma busca para chave simultânea e repetida; cache conserva método e sem IA',async()=>{
  const busca=vi.fn(async()=>{await new Promise(r=>setTimeout(r,10));return html;});const ia=vi.fn();const uf=vi.fn(async(e)=>lerSp(e.pagina.html));
- const o=new Orquestrador({buscarPortal:busca,leitorUf:uf,ia,cache:new CacheMemoria()},true);
+ const o=new Orquestrador({buscarPortal:busca,leitorUf:uf,ia,cache:new CacheMemoria()});
  const [a,b]=await Promise.all([o.ler({modelo:'NFCE',qrUrl},contexto()),o.ler({modelo:'NFCE',qrUrl},contexto())]);
  expect(a.doCache).toBe(false);expect(b.doCache).toBe(true);expect(b.metodo).toBe('LEITOR_UF');
  expect((await o.ler({modelo:'NFCE',chaveAcesso:chave},contexto())).doCache).toBe(true);
@@ -36,14 +36,14 @@ it('QR fora da lista não consulta cache nem faz rede; chave/UF da resposta prec
 });
 it('leitor UF falha e usa IA; imagem sem QR usa IA com aviso',async()=>{
  const nota={...lerSp(html)!,metodo:'IA' as const};const ia=vi.fn(async()=>nota);
- const o=new Orquestrador({buscarPortal:async()=>html,leitorUf:async()=>undefined,ia,decodificarQr:async()=>undefined},true);
+ const o=new Orquestrador({buscarPortal:async()=>html,leitorUf:async()=>undefined,ia,decodificarQr:async()=>undefined});
  expect((await o.ler({modelo:'NFCE',qrUrl},contexto())).metodo).toBe('IA');expect(ia).toHaveBeenCalledOnce();
  expect((await o.ler({modelo:'NFCE',arquivo:{dados:Buffer.from('fixture'),mime:'image/png'},confirmouEnvioIa:true},contexto())).avisos).toEqual(['O QR não pôde ser lido; a leitura foi feita pela imagem.']);
 });
 it('UF da chave prevalece sobre host SP; código de UF impossível bloqueia',async()=>{
  const uf=vi.fn(async(e)=>{expect(e.pagina.uf).toBe('RJ');return undefined;});
  const chaveRj='33'+'1'.repeat(42);const ia=vi.fn(async()=>({...lerSp(html)!,uf:'RJ',chaveAcesso:chaveRj,metodo:'IA' as const}));
- const o=new Orquestrador({buscarPortal:async()=>html,leitorUf:uf,ia},true);
+ const o=new Orquestrador({buscarPortal:async()=>html,leitorUf:uf,ia});
  expect((await o.ler({modelo:'NFCE',qrUrl:qrUrl.replace(chave,chaveRj)},contexto())).uf).toBe('RJ');
  await expect(o.ler({modelo:'NFCE',chaveAcesso:'99'+'1'.repeat(42)},contexto())).rejects.toThrow('DOCUMENTO_INVALIDO');
 });

@@ -20,7 +20,7 @@ export interface AdaptadoresLeitura {
 }
 export class Orquestrador {
  private emCurso = new Map<string,Promise<NotaLida>>();
- constructor(private readonly adaptadores: AdaptadoresLeitura = {}, private readonly iaHabilitada = false) {}
+ constructor(private readonly adaptadores: AdaptadoresLeitura = {}) {}
  async ler(entrada: EntradaLeitura, contexto: ContextoLeitura): Promise<NotaLida> {
   contexto.signal.throwIfAborted();
   const mime = entrada.arquivo?.mime;
@@ -56,7 +56,7 @@ export class Orquestrador {
     try { const resultado = await this.adaptadores.leitorUf(preparada, contexto); if (resultado) nota = notaSchema.parse(resultado); }
     catch { contexto.signal.throwIfAborted(); }
    }
-   if (!nota && this.iaHabilitada && this.adaptadores.ia) {
+   if (!nota && this.adaptadores.ia) {
     if (preparada.pagina) {
      try { await this.adaptadores.registrarFallback?.(preparada.pagina); }
      catch { /* Falha de amostra não impede a leitura fiscal. */ }
