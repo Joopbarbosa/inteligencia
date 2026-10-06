@@ -13,6 +13,11 @@ const infoSchema = obj({ '@_Id': z.string(), '@_versao': z.string().min(1),
  det: z.array(obj({ prod: produto })).min(1),
  total: obj({ ICMSTot: obj({ vNF: decimal, vDesc: decimal.optional(), vFrete: decimal.optional(), vSeg: decimal.optional(), vOutro: decimal.optional() }) })
 });
+/** Há assinatura digital (xmldsig com SignatureValue) no XML. É presença, não verificação criptográfica da assinatura. */
+export function xmlAssinado(dados: Buffer): boolean {
+ const texto = dados.toString('utf8');
+ return texto.includes('http://www.w3.org/2000/09/xmldsig#') && /<(?:[\w-]+:)?SignatureValue[\s>]/.test(texto);
+}
 export function lerXml(dados: Buffer): NotaLida {
  try {
   if (dados.length > 5 * 1024 * 1024) throw new Error('Tamanho');

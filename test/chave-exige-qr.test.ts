@@ -35,10 +35,10 @@ describe('#708: NFC-e de SP só pela chave', () => {
   expect((await orquestrador.ler({ modelo: 'NFCE', chaveAcesso: chaveSp }, contexto())).doCache).toBe(true);
   expect(buscarPortal).toHaveBeenCalledOnce();
  });
- it('chave de outro estado segue para o portal', async () => {
-  const { orquestrador, buscarPortal } = montar();
-  await orquestrador.ler({ modelo: 'NFCE', chaveAcesso: chaveRj }, contexto()).catch(() => undefined);
-  expect(buscarPortal).toHaveBeenCalledOnce();
+ it('chave de UF sem portal cadastrado é LEITURA_IMPOSSIVEL e não toca a rede (#727)', async () => {
+  const { orquestrador, buscarPortal, ia } = montar();
+  await expect(orquestrador.ler({ modelo: 'NFCE', chaveAcesso: chaveRj }, contexto())).rejects.toThrow('LEITURA_IMPOSSIVEL');
+  expect(buscarPortal).not.toHaveBeenCalled(); expect(ia).not.toHaveBeenCalled();
  });
 });
 

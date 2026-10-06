@@ -76,7 +76,8 @@
                   },
                   "chaveAcesso": {
                     "type": "string",
-                    "pattern": "^[0-9A-Z]{44}$"
+                    "description": "44 caracteres; letras minúsculas são aceitas e tratadas como a mesma chave em maiúsculas.",
+                    "pattern": "^[0-9A-Za-z]{44}$"
                   }
                 },
                 "required": [

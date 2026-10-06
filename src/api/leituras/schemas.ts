@@ -1,6 +1,8 @@
 import { z } from 'zod';
 export const decimal = z.string().regex(/^\d+(\.\d+)?$/);
 export const chaveAcesso = z.string().regex(/^[0-9A-Z]{44}$/);
+// Chave em minúsculas é a mesma chave (CEN-NOVO-55): normaliza antes de validar.
+const chaveAcessoEntrada = z.string().transform(v => v.toUpperCase()).pipe(chaveAcesso);
 const item = z.strictObject({ nome: z.string().min(1).max(500), quantidade: decimal, valorFinal: decimal,
  valorBruto: decimal.optional(), desconto: decimal.optional(), unidade: z.string().optional(),
  codigo: z.string().optional(), ean: z.string().optional() });
@@ -13,5 +15,5 @@ export const notaSchema = z.strictObject({
 });
 export type NotaLida = z.infer<typeof notaSchema>;
 export const entradaJsonSchema = z.strictObject({ modelo: z.enum(['NFCE','NFE']),
- qrUrl: z.string().min(1).max(4096).optional(), chaveAcesso: chaveAcesso.optional()
+ qrUrl: z.string().min(1).max(4096).optional(), chaveAcesso: chaveAcessoEntrada.optional()
 }).refine(v => Number(v.qrUrl !== undefined) + Number(v.chaveAcesso !== undefined) === 1);

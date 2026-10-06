@@ -17,6 +17,7 @@ Autenticação: `Authorization: Bearer <chave do produto>`. `X-Conta-Id`: UUID o
 A chave é conferida antes de ler o corpo; chave ausente, inválida ou revogada responde 401.
 
 Entrada JSON: `modelo` (`NFE` ou `NFCE`) e exatamente um de `qrUrl` ou `chaveAcesso`.
+`chaveAcesso` em minúsculas é aceita e tratada como a mesma chave em maiúsculas (CEN-NOVO-55).
 Entrada multipart: `modelo` e um `arquivo`; `confirmouEnvioIa=true` obrigatório para imagens/PDF.
 Tipos de arquivo aceitos: application/xml, text/xml, application/pdf, image/png, image/jpeg.
 XML até 5 MB; demais arquivos até 10 MB. Campos desconhecidos e entradas simultâneas são recusados.
