@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { decimal, notaSchema, type NotaLida } from '../../api/leituras/schemas.js';
 import { subtrair, somar } from '../../shared/decimal.js';
 import { ErroLeitura } from '../../shared/erro.js';
+import { ufPorCodigoIbge } from '../../shared/uf.js';
 const obj = z.looseObject;
 const produto = obj({ xProd: z.string(), qCom: decimal, vProd: decimal, vDesc: decimal.optional(),
  uCom: z.string().optional(), cProd: z.string().optional(), cEAN: z.string().optional() });
@@ -12,9 +13,6 @@ const infoSchema = obj({ '@_Id': z.string(), '@_versao': z.string().min(1),
  det: z.array(obj({ prod: produto })).min(1),
  total: obj({ ICMSTot: obj({ vNF: decimal, vDesc: decimal.optional(), vFrete: decimal.optional(), vSeg: decimal.optional(), vOutro: decimal.optional() }) })
 });
-const ufs: Record<string, string> = { '11':'RO','12':'AC','13':'AM','14':'RR','15':'PA','16':'AP','17':'TO',
- '21':'MA','22':'PI','23':'CE','24':'RN','25':'PB','26':'PE','27':'AL','28':'SE','29':'BA',
- '31':'MG','32':'ES','33':'RJ','35':'SP','41':'PR','42':'SC','43':'RS','50':'MS','51':'MT','52':'GO','53':'DF' };
 export function lerXml(dados: Buffer): NotaLida {
  try {
   if (dados.length > 5 * 1024 * 1024) throw new Error('Tamanho');
@@ -28,7 +26,7 @@ export function lerXml(dados: Buffer): NotaLida {
   const info = infoSchema.parse((raiz.NFe ?? raiz.nfeProc?.NFe)?.infNFe);
   if (!/^NFe[0-9A-Z]{44}$/.test(info['@_Id'])) throw new Error('Identificador');
   const chave = info['@_Id'].slice(3);
-  const uf = ufs[chave.slice(0, 2)];
+  const uf = ufPorCodigoIbge[chave.slice(0, 2)];
   if (!uf || uf !== info.emit.enderEmit.UF || info.ide.cUF !== chave.slice(0,2) || chave.slice(6,20) !== info.emit.CNPJ || chave.slice(20,22) !== '55') throw new Error('Dados incoerentes');
   const itens = info.det.map(({ prod: p }) => ({ nome: p.xProd, quantidade: p.qCom,
    valorFinal: subtrair(p.vProd, p.vDesc ?? '0'), valorBruto: p.vProd,
