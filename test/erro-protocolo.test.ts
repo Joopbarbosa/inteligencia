@@ -60,16 +60,16 @@ describe('multipart malformado é entrada inválida (#768)', () => {
 
 // #776 (Schemathesis do leitor, commit 1fff805): rota que existe com outro método responde 405 com Allow, não 404.
 describe('método HTTP fora do contrato é 405 com Allow (#776)', () => {
-  const appUnico = criarApp({ autenticar: async () => undefined });
+  const corpoDe = (resposta: string) => JSON.parse(resposta.slice(resposta.indexOf('\r\n\r\n') + 4));
   it.each([['/saude', 'GET, HEAD'], ['/v1/leituras', 'POST']])('TRACE em %s responde 405', async (url, allow) => {
-    const r = await (await appUnico).inject({ method: 'TRACE', url });
-    expect(r.statusCode).toBe(405);
-    expect(r.headers.allow).toBe(allow);
-    expect(r.json()).toMatchObject({ tipo: 'BLOQUEIO', codigo: 'METODO_NAO_PERMITIDO' });
+    const resposta = await bruto(`TRACE ${url} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`);
+    expect(resposta.startsWith('HTTP/1.1 405')).toBe(true);
+    expect(resposta.toLowerCase()).toContain(`allow: ${allow.toLowerCase()}`);
+    expect(corpoDe(resposta)).toMatchObject({ tipo: 'BLOQUEIO', codigo: 'METODO_NAO_PERMITIDO' });
   });
   it('rota inexistente continua 404', async () => {
-    const r = await (await appUnico).inject({ method: 'TRACE', url: '/nao-existe' });
-    expect(r.statusCode).toBe(404);
-    expect(r.json()).toMatchObject({ codigo: 'RECURSO_INEXISTENTE' });
+    const resposta = await bruto('TRACE /nao-existe HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n');
+    expect(resposta.startsWith('HTTP/1.1 404')).toBe(true);
+    expect(corpoDe(resposta)).toMatchObject({ codigo: 'RECURSO_INEXISTENTE' });
   });
 });
