@@ -80,13 +80,14 @@ describe('cache só com chave verificada', () => {
   await new Orquestrador({ cache, buscarPortal: async () => htmlSp, leitorUf: async e => e.pagina ? lerSp(e.pagina.html) : undefined }).ler({ modelo: 'NFCE', qrUrl: linkSp(chaveSp) }, contexto());
   expect(cache.guardar).toHaveBeenCalledOnce();
  });
- it('XML sem assinatura não entra no cache; XML assinado entra', async () => {
+ it('XML sem assinatura, ou com assinatura de enfeite, não entra no cache (a assinatura válida é coberta em xml-assinatura.test.ts, #743)', async () => {
   const cache = espiaoCache(); const o = new Orquestrador({ cache });
   await o.ler({ modelo: 'NFE', arquivo: { dados: xml, mime: 'application/xml' } }, contexto());
   expect(cache.guardar).not.toHaveBeenCalled();
+  // SignatureValue presente mas sem assinatura verificável: desde a #743 isso não basta.
   const assinado = Buffer.from(xml.toString('utf8').replace('</NFe>', '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignatureValue>QUJD</SignatureValue></Signature></NFe>'));
   await o.ler({ modelo: 'NFE', arquivo: { dados: assinado, mime: 'application/xml' } }, contexto());
-  expect(cache.guardar).toHaveBeenCalledOnce();
+  expect(cache.guardar).not.toHaveBeenCalled();
  });
  it('o aviso do QR ilegível não vai ao cache: leitura posterior pelo QR não o recebe', async () => {
   const cache = new CacheMemoria();
