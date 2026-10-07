@@ -5,6 +5,8 @@ import { entradaJsonSchema } from './leituras/schemas.js';
 import { Orquestrador, type EntradaLeitura } from '../leitura/orquestrador.js';
 import { ErroLeitura, corpoErro } from '../shared/erro.js';
 declare module 'fastify' { interface FastifyRequest { chaveClienteId: string; liberarLeitura: (() => void) | null } }
+// #776 e #779: métodos aceitos por rota; rota existente com outro método responde 405 com Allow.
+const metodosPorRota: Record<string,string> = { '/saude': 'GET, HEAD', '/v1/leituras': 'POST' };
 export interface OpcoesApp { autenticar: (chave: string) => Promise<string | undefined>; orquestrador?: Orquestrador }
 export async function criarApp(opcoes: OpcoesApp) {
  // #764: erros de protocolo recusados pelo próprio servidor HTTP (ex.: cabeçalho grande) saem no formato de erro do serviço.
@@ -15,6 +17,8 @@ export async function criarApp(opcoes: OpcoesApp) {
   socket.end(`HTTP/1.1 ${status}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${Buffer.byteLength(corpo)}\r\nConnection: close\r\n\r\n${corpo}`);
  };
  const app = Fastify({ bodyLimit: 1024 * 1024, logger: false, requestTimeout: 60_000, clientErrorHandler });
+ // #779: o Fastify recusa QUERY (método de extensão) com 400 antes do tratador de rota não encontrada; registrado, cai no 405/404 padrão.
+ app.addHttpMethod('QUERY', { overrideExisting: true });
  app.decorateRequest('chaveClienteId', '');
  app.decorateRequest('liberarLeitura', null);
  const simultaneas = new Map<string,number>();
@@ -29,7 +33,6 @@ export async function criarApp(opcoes: OpcoesApp) {
   return reply.code(500).send(corpoErro('ERRO_INTERNO'));
  });
  // #776: rota que existe com outro método responde 405 com Allow; só rota que não existe é 404.
- const metodosPorRota: Record<string,string> = { '/saude': 'GET, HEAD', '/v1/leituras': 'POST' };
  app.setNotFoundHandler((req, reply) => {
   const permitidos = metodosPorRota[req.url.split('?')[0]!];
   if (permitidos) return reply.code(405).header('Allow', permitidos).send(corpoErro('METODO_NAO_PERMITIDO'));
