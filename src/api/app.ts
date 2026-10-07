@@ -53,14 +53,19 @@ export async function criarApp(opcoes: OpcoesApp) {
    if (!/(?:^|;)\s*boundary=(?:"[^"]+"|[^;\s]+)/i.test(req.headers['content-type'] ?? '')) throw new ErroLeitura('DOCUMENTO_INVALIDO');
    const campos: Record<string, string> = {};
    let arquivo: EntradaLeitura['arquivo'];
-   for await (const parte of req.parts()) {
-    if (parte.type === 'file') {
-     if (parte.fieldname !== 'arquivo' || arquivo || !['application/xml','text/xml','application/pdf','image/png','image/jpeg'].includes(parte.mimetype)) throw new ErroLeitura('DOCUMENTO_INVALIDO');
-     arquivo = { dados: await parte.toBuffer(), mime: parte.mimetype };
-    } else {
-     if (parte.fieldname in campos || typeof parte.value !== 'string') throw new ErroLeitura('DOCUMENTO_INVALIDO');
-     campos[parte.fieldname] = parte.value;
+   // #768: corpo multipart malformado (o analisador lança erro sem código HTTP) é entrada inválida, não falha interna.
+   try {
+    for await (const parte of req.parts()) {
+     if (parte.type === 'file') {
+      if (parte.fieldname !== 'arquivo' || arquivo || !['application/xml','text/xml','application/pdf','image/png','image/jpeg'].includes(parte.mimetype)) throw new ErroLeitura('DOCUMENTO_INVALIDO');
+      arquivo = { dados: await parte.toBuffer(), mime: parte.mimetype };
+     } else {
+      if (parte.fieldname in campos || typeof parte.value !== 'string') throw new ErroLeitura('DOCUMENTO_INVALIDO');
+      campos[parte.fieldname] = parte.value;
+     }
     }
+   } catch (erro) {
+    throw erro instanceof ErroLeitura ? erro : new ErroLeitura('DOCUMENTO_INVALIDO');
    }
    const dados = z.strictObject({ modelo: z.enum(['NFCE','NFE']), confirmouEnvioIa: z.enum(['true','false']).optional() }).parse(campos);
    if (!arquivo) throw new ErroLeitura('DOCUMENTO_INVALIDO');

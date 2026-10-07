@@ -35,3 +35,25 @@ describe('erros de protocolo no formato do serviço (#764)', () => {
     expect(JSON.parse(resposta.slice(resposta.indexOf('\r\n\r\n') + 4))).toMatchObject({ codigo: 'DOCUMENTO_INVALIDO' });
   });
 });
+
+// #768 (Schemathesis do leitor, commit cdd5d1d): multipart malformado devolvia 500 ERRO_INTERNO.
+describe('multipart malformado é entrada inválida (#768)', () => {
+  const chave = 'a'.repeat(64);
+  const appAutenticado = criarApp({ autenticar: async () => 'chave-teste' });
+  const enviar = async (corpo: string, tipo: string) => (await appAutenticado).inject({
+    method: 'POST', url: '/v1/leituras', payload: corpo,
+    headers: { authorization: `Bearer ${chave}`, 'x-conta-id': '00000000-0000-4000-8000-000000000001', 'content-type': tipo },
+  });
+
+  it('parte sem cabeçalhos responde 400 DOCUMENTO_INVALIDO', async () => {
+    const r = await enviar('--B\r\nTrue--B--\r\n', 'multipart/form-data; boundary=B');
+    expect(r.statusCode).toBe(400);
+    expect(r.json()).toMatchObject({ tipo: 'BLOQUEIO', codigo: 'DOCUMENTO_INVALIDO' });
+  });
+
+  it('corpo cortado no meio da parte responde 400', async () => {
+    const r = await enviar('--B\r\nContent-Disposition: form-data; name="modelo"\r\n\r\nNFCE', 'multipart/form-data; boundary=B');
+    expect(r.statusCode).toBe(400);
+    expect(r.json()).toMatchObject({ codigo: 'DOCUMENTO_INVALIDO' });
+  });
+});
