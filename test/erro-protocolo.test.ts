@@ -72,4 +72,16 @@ describe('método HTTP fora do contrato é 405 com Allow (#776)', () => {
     expect(resposta.startsWith('HTTP/1.1 404')).toBe(true);
     expect(corpoDe(resposta)).toMatchObject({ codigo: 'RECURSO_INEXISTENTE' });
   });
+  // #779: método de extensão que o Node não reconhece (QUERY) também é 405 com Allow em rota existente.
+  it.each([['QUERY', '/saude', '405', 'GET, HEAD'], ['QUERY', '/v1/leituras', '405', 'POST'], ['QUERY', '/nao-existe', '404', '']])('%s %s responde %s', async (metodo, url, status, allow) => {
+    const resposta = await bruto(`${metodo} ${url} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`);
+    expect(resposta.startsWith(`HTTP/1.1 ${status}`)).toBe(true);
+    if (allow) expect(resposta.toLowerCase()).toContain(`allow: ${allow.toLowerCase()}`);
+    expect(corpoDe(resposta)).toMatchObject({ tipo: 'BLOQUEIO', codigo: allow ? 'METODO_NAO_PERMITIDO' : 'RECURSO_INEXISTENTE' });
+  });
+  it('lixo que não é requisição HTTP continua 400', async () => {
+    const resposta = await bruto('@@@@ isso nao e http\r\n\r\n');
+    expect(resposta.startsWith('HTTP/1.1 400')).toBe(true);
+  });
 });
+
