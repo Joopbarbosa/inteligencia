@@ -57,3 +57,19 @@ describe('multipart malformado é entrada inválida (#768)', () => {
     expect(r.json()).toMatchObject({ codigo: 'DOCUMENTO_INVALIDO' });
   });
 });
+
+// #776 (Schemathesis do leitor, commit 1fff805): rota que existe com outro método responde 405 com Allow, não 404.
+describe('método HTTP fora do contrato é 405 com Allow (#776)', () => {
+  const corpoDe = (resposta: string) => JSON.parse(resposta.slice(resposta.indexOf('\r\n\r\n') + 4));
+  it.each([['/saude', 'GET, HEAD'], ['/v1/leituras', 'POST']])('TRACE em %s responde 405', async (url, allow) => {
+    const resposta = await bruto(`TRACE ${url} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`);
+    expect(resposta.startsWith('HTTP/1.1 405')).toBe(true);
+    expect(resposta.toLowerCase()).toContain(`allow: ${allow.toLowerCase()}`);
+    expect(corpoDe(resposta)).toMatchObject({ tipo: 'BLOQUEIO', codigo: 'METODO_NAO_PERMITIDO' });
+  });
+  it('rota inexistente continua 404', async () => {
+    const resposta = await bruto('TRACE /nao-existe HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n');
+    expect(resposta.startsWith('HTTP/1.1 404')).toBe(true);
+    expect(corpoDe(resposta)).toMatchObject({ codigo: 'RECURSO_INEXISTENTE' });
+  });
+});
