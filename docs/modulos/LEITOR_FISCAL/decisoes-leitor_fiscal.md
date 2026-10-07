@@ -52,7 +52,7 @@ Cache, limites, SSRF, QR, IA, alertas e amostras permanecem nas tarefas designad
 ## #727 — Correções da QA da #679 (2026-10-06)
 
 - Consulta por chave resolve a URL por UF em `portaisPorChave` (`src/leitores/registro.ts`); só SP cadastrada (escopo atual do Gestor: "precisa verificar todos os estados" fica para depois). UF sem entrada responde `LEITURA_IMPOSSIVEL` sem tocar a rede.
-- Cache global só recebe nota lida da página do portal (link/QR validado ou consulta por chave cadastrada) com a chave conferida, ou XML com assinatura digital. Resultado de IA lido de foto/PDF nunca entra. **Limitação:** "XML assinado" é presença de `SignatureValue` xmldsig, não verificação criptográfica; verificação real (cadeia ICP-Brasil) fica para decisão do Gestor.
+- Cache global só recebe nota lida da página do portal (link/QR validado ou consulta por chave cadastrada) com a chave conferida, ou XML com assinatura digital **verificada criptograficamente** (#743, `src/leitores/xml/assinatura.ts`, xml-crypto): a assinatura XMLDSig confere com o certificado embutido em `KeyInfo`, há uma única assinatura e o trecho assinado é o `infNFe` cuja chave foi lida. Resultado de IA lido de foto/PDF nunca entra. **Limitação:** a verificação prova integridade (o conteúdo não mudou depois de assinado), não autenticidade do emitente; a cadeia ICP-Brasil e a revogação do certificado não são validadas e dependem de decisão do Gestor.
 - O aviso "O QR não pôde ser lido..." é acrescentado depois de gravar no cache.
 - `chaveAcesso` de entrada passa por `toUpperCase` antes do regex; o regex de saída (`notaSchema`) segue só maiúsculas.
 

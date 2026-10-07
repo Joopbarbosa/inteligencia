@@ -1,5 +1,6 @@
 import { notaSchema, type NotaLida } from '../api/leituras/schemas.js';
-import { lerXml, xmlAssinado } from '../leitores/xml/leitor.js';
+import { lerXml } from '../leitores/xml/leitor.js';
+import { assinaturaXmlValida } from '../leitores/xml/assinatura.js';
 import { ErroLeitura } from '../shared/erro.js';
 import { validarPortal } from '../seguranca/buscaSegura.js';
 import { chaveDoQr, ufDaChave } from './chave.js';
@@ -29,8 +30,8 @@ export class Orquestrador {
   if (mime === 'application/xml' || mime === 'text/xml') {
    if (entrada.modelo !== 'NFE') throw new ErroLeitura('DOCUMENTO_INVALIDO');
    const nota = lerXml(entrada.arquivo!.dados);
-   // O XML sem assinatura digital não prova a chave: não entra no cache global (#679).
-   if (xmlAssinado(entrada.arquivo!.dados)) await this.adaptadores.cache?.guardar(nota);
+   // O XML sem assinatura digital verificável não prova a chave: não entra no cache global (#679, #743).
+   if (assinaturaXmlValida(entrada.arquivo!.dados, nota.chaveAcesso)) await this.adaptadores.cache?.guardar(nota);
    return nota;
   }
   if (entrada.arquivo && !entrada.confirmouEnvioIa) throw new ErroLeitura('CONFIRMACAO_ENVIO_IA_AUSENTE');
