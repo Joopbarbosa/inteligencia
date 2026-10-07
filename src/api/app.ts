@@ -7,7 +7,14 @@ import { ErroLeitura, corpoErro } from '../shared/erro.js';
 declare module 'fastify' { interface FastifyRequest { chaveClienteId: string; liberarLeitura: (() => void) | null } }
 export interface OpcoesApp { autenticar: (chave: string) => Promise<string | undefined>; orquestrador?: Orquestrador }
 export async function criarApp(opcoes: OpcoesApp) {
- const app = Fastify({ bodyLimit: 1024 * 1024, logger: false, requestTimeout: 60_000 });
+ // #764: erros de protocolo recusados pelo próprio servidor HTTP (ex.: cabeçalho grande) saem no formato de erro do serviço.
+ const clientErrorHandler = (erro: NodeJS.ErrnoException, socket: import('node:net').Socket) => {
+  if (!socket.writable) { socket.destroy(erro); return; }
+  const status = erro.code === 'HPE_HEADER_OVERFLOW' ? '431 Request Header Fields Too Large' : '400 Bad Request';
+  const corpo = JSON.stringify(corpoErro('DOCUMENTO_INVALIDO'));
+  socket.end(`HTTP/1.1 ${status}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${Buffer.byteLength(corpo)}\r\nConnection: close\r\n\r\n${corpo}`);
+ };
+ const app = Fastify({ bodyLimit: 1024 * 1024, logger: false, requestTimeout: 60_000, clientErrorHandler });
  app.decorateRequest('chaveClienteId', '');
  app.decorateRequest('liberarLeitura', null);
  const simultaneas = new Map<string,number>();
