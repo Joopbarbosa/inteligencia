@@ -41,6 +41,7 @@ XML até 5 MB; demais arquivos até 10 MB. Campos desconhecidos e entradas simul
 | 400 | BLOQUEIO | LIMITE_SIMULTANEAS: já há quatro leituras em andamento para a chave de produto |
 | 401 | BLOQUEIO | CHAVE_INVALIDA: chave ausente, inválida ou revogada |
 | 404 | BLOQUEIO | RECURSO_INEXISTENTE: rota inexistente |
+| 405 | BLOQUEIO | METODO_NAO_PERMITIDO: rota existente com outro método HTTP (ex.: TRACE em `/saude` ou `/v1/leituras`); o cabeçalho `Allow` lista os métodos aceitos (#776) |
 | 500 | BLOQUEIO | ERRO_INTERNO: mensagem genérica sem detalhe interno |
 
 O campo `codigo` é um enum fechado no `docs/openapi.yaml` (componente `Erro`), igual à lista acima.

@@ -28,7 +28,13 @@ export async function criarApp(opcoes: OpcoesApp) {
    return reply.code(400).send(corpoErro('DOCUMENTO_INVALIDO'));
   return reply.code(500).send(corpoErro('ERRO_INTERNO'));
  });
- app.setNotFoundHandler((_req, reply) => reply.code(404).send(corpoErro('RECURSO_INEXISTENTE')));
+ // #776: rota que existe com outro método responde 405 com Allow; só rota que não existe é 404.
+ const metodosPorRota: Record<string,string> = { '/saude': 'GET, HEAD', '/v1/leituras': 'POST' };
+ app.setNotFoundHandler((req, reply) => {
+  const permitidos = metodosPorRota[req.url.split('?')[0]!];
+  if (permitidos) return reply.code(405).header('Allow', permitidos).send(corpoErro('METODO_NAO_PERMITIDO'));
+  return reply.code(404).send(corpoErro('RECURSO_INEXISTENTE'));
+ });
  app.get('/saude', async () => ({ status: 'ok' }));
  app.post('/v1/leituras', {
   onRequest: async (req) => {

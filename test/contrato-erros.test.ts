@@ -17,7 +17,7 @@ const emitidos = new Set(arquivos('src').flatMap(f => [...readFileSync(f, 'utf8'
 
 describe('#677 achado 1: contrato de erros declara todos os códigos que o serviço emite', () => {
   it('o enum do OpenAPI contém todo código emitido e nada além dele', () => {
-    for (const c of ['RECURSO_INEXISTENTE', 'ERRO_INTERNO']) emitidos.add(c);
+    for (const c of ['RECURSO_INEXISTENTE', 'METODO_NAO_PERMITIDO', 'ERRO_INTERNO']) emitidos.add(c);
     expect([...enumOpenApi].sort()).toEqual([...emitidos].sort());
     expect([...CODIGOS_ERRO].sort()).toEqual([...emitidos].sort());
   });

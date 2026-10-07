@@ -31,6 +31,25 @@
                 }
               }
             }
+          },
+          "405": {
+            "description": "Método HTTP fora do contrato deste endereço; o cabeçalho Allow lista os aceitos",
+            "headers": {
+              "Allow": {
+                "description": "Métodos aceitos",
+                "schema": {
+                  "type": "string",
+                  "example": "GET, HEAD"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
           }
         }
       }
@@ -178,6 +197,25 @@
           },
           "500": {
             "description": "Erro interno genérico",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Método HTTP fora do contrato deste endereço; o cabeçalho Allow lista os aceitos",
+            "headers": {
+              "Allow": {
+                "description": "Métodos aceitos",
+                "schema": {
+                  "type": "string",
+                  "example": "POST"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -378,6 +416,7 @@
               "LIMITE_SIMULTANEAS",
               "CHAVE_INVALIDA",
               "RECURSO_INEXISTENTE",
+              "METODO_NAO_PERMITIDO",
               "ERRO_INTERNO"
             ]
           },
