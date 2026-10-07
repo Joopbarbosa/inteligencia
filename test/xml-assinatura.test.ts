@@ -58,7 +58,7 @@ describe('verificação criptográfica da assinatura da NF-e (#743)', () => {
  });
  it('só o XML com assinatura verificável entra no cache', async () => {
   const guardadas: string[] = [];
-  const orquestrador = new Orquestrador({ cache: { guardar: async n => { guardadas.push(n.chaveAcesso); }, buscar: async () => undefined } } as never);
+  const orquestrador = new Orquestrador({ cache: { guardar: async (n: { chaveAcesso: string }) => { guardadas.push(n.chaveAcesso); }, buscar: async () => undefined } } as never);
   const contexto = { signal: new AbortController().signal, contaId: 'c', chaveClienteId: 'k' } as never;
   const entrada = (xml: string) => ({ modelo: 'NFE' as const, arquivo: { dados: Buffer.from(xml), mime: 'application/xml' } });
   await orquestrador.ler(entrada(original), contexto);
