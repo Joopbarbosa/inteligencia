@@ -84,4 +84,3 @@ describe('método HTTP fora do contrato é 405 com Allow (#776)', () => {
     expect(resposta.startsWith('HTTP/1.1 400')).toBe(true);
   });
 });
-
