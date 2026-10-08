@@ -1,0 +1,5 @@
+# Só para teste local: publica a porta da Evolution API APENAS em 127.0.0.1 (nunca em produção).
+services:
+  evolution-api:
+    ports:
+      - "127.0.0.1:8081:8080"
