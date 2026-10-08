@@ -1,0 +1,56 @@
+{
+  "commands": {
+    "build": {
+      "argv": [
+        "node",
+        "-e",
+        "require('child_process').execFileSync('npm',['run','build'],{stdio:'inherit'}); console.log('BUILD_OK')"
+      ],
+      "success_pattern": "BUILD_OK"
+    },
+    "types": {
+      "argv": [
+        "node",
+        "-e",
+        "require('child_process').execFileSync('npm',['run','typecheck'],{stdio:'inherit'}); console.log('TYPES_OK')"
+      ],
+      "success_pattern": "TYPES_OK"
+    },
+    "lint": {
+      "argv": [
+        "node",
+        "-e",
+        "require('child_process').execFileSync('npm',['run','lint'],{stdio:'inherit'}); console.log('LINT_OK')"
+      ],
+      "success_pattern": "LINT_OK"
+    },
+    "tests": {
+      "argv": [
+        "npm",
+        "test"
+      ],
+      "success_pattern": "Tests\\s+[1-9][0-9]* passed"
+    },
+    "semgrep": {
+      "argv": [
+        "semgrep",
+        "scan",
+        "--config",
+        "p/owasp-top-ten",
+        "--baseline-commit",
+        "{base}",
+        "--json",
+        "--quiet",
+        "."
+      ],
+      "format": "semgrep_json",
+      "timeout": 1200
+    }
+  },
+  "full_suite": [
+    [
+      "npm",
+      "test"
+    ]
+  ]
+}
