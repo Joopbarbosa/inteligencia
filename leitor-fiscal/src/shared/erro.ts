@@ -1,0 +1,28 @@
+/** Códigos de erro que o serviço emite; o enum do `docs/openapi.yaml` e a tabela do contrato acompanham esta lista. */
+export const CODIGOS_ERRO = ['DOCUMENTO_INVALIDO','CONFIRMACAO_ENVIO_IA_AUSENTE','CHAVE_EXIGE_QR','PORTAL_NAO_PERMITIDO','LEITURA_IMPOSSIVEL',
+ 'IA_INDISPONIVEL','LIMITE_IA_ATINGIDO','LIMITE_SIMULTANEAS','CHAVE_INVALIDA','RECURSO_INEXISTENTE','METODO_NAO_PERMITIDO','ERRO_INTERNO'] as const;
+export class ErroLeitura extends Error {
+ constructor(readonly codigo: string, readonly status = 400) { super(codigo); }
+}
+export function corpoErro(codigo: string) {
+ return { tipo: 'BLOQUEIO' as const, codigo, titulo: 'Não foi possível concluir a leitura',
+ motivo: codigo === 'CHAVE_INVALIDA' ? 'O leitor de notas não está disponível agora.' :
+ codigo === 'METODO_NAO_PERMITIDO' ? 'O método HTTP usado não é aceito por este endereço.' :
+ codigo === 'ERRO_INTERNO' ? 'O serviço encontrou um erro inesperado.' :
+ codigo === 'LIMITE_IA_ATINGIDO' ? 'O limite mensal de leituras por IA foi atingido.' :
+ codigo === 'LIMITE_SIMULTANEAS' ? 'Há quatro leituras em andamento para este produto.' :
+ codigo === 'IA_INDISPONIVEL' ? 'Os serviços de IA não conseguiram concluir a leitura.' :
+ codigo === 'CONFIRMACAO_ENVIO_IA_AUSENTE' ? 'Imagem ou PDF só é lido por IA depois que você confirma o envio do arquivo.' :
+ codigo === 'PORTAL_NAO_PERMITIDO' ? 'O link informado não é de um portal oficial da Fazenda aceito pelo serviço.' :
+ codigo === 'CHAVE_EXIGE_QR' ? 'O portal da Fazenda deste estado exige um código de imagem (captcha) na consulta pela chave de acesso.' :
+ 'O documento não pôde ser lido com os dados enviados.',
+ comoResolver: codigo === 'CONFIRMACAO_ENVIO_IA_AUSENTE' ? 'Confirme o envio do arquivo para leitura por IA ou use o QR code, o link do QR ou o XML da nota.' :
+ codigo === 'PORTAL_NAO_PERMITIDO' ? 'Use o QR code do cupom ou cole o link exatamente como aparece no QR; se não funcionar, registre a compra à mão.' :
+ codigo === 'CHAVE_EXIGE_QR' ? 'Use o QR code do cupom (pela câmera ou por uma foto) ou cole o link do QR code.' :
+ codigo === 'LIMITE_IA_ATINGIDO' ? 'O limite renova no próximo mês. Use o QR code do cupom ou o XML da nota, que não usam IA, ou registre a compra à mão.' :
+ codigo === 'LIMITE_SIMULTANEAS' ? 'Espere uma leitura terminar e tente de novo.' :
+ codigo === 'ERRO_INTERNO' || codigo === 'IA_INDISPONIVEL' ? 'Tente de novo em alguns minutos; se continuar, registre a compra à mão.' :
+ codigo === 'CHAVE_INVALIDA' ? 'Registre a compra à mão e avise o suporte.' :
+ codigo === 'METODO_NAO_PERMITIDO' ? 'Use o método indicado no cabeçalho Allow (GET em /saude, POST em /v1/leituras).' :
+ 'Confira os dados e tente novamente ou registre a compra à mão.', itens: [] as string[] };
+}

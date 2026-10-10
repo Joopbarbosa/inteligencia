@@ -1,0 +1,450 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "leitor-fiscal",
+    "version": "0.16.0",
+    "description": "Contrato DT-NOVA-1. Textos de erros e avisos são rascunhos até validação do Gestor. XML máximo 5 MB; imagens/PDF máximo 10 MB. Imagem e PDF exigem confirmouEnvioIa=true. Leituras síncronas, prazo máximo 60 segundos. O limite mensal de leituras por IA (conta e chave de produto) responde LIMITE_IA_ATINGIDO."
+  },
+  "paths": {
+    "/saude": {
+      "get": {
+        "operationId": "saude",
+        "responses": {
+          "200": {
+            "description": "Serviço disponível, sem dados sensíveis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Método HTTP fora do contrato deste endereço; o cabeçalho Allow lista os aceitos",
+            "headers": {
+              "Allow": {
+                "description": "Métodos aceitos",
+                "schema": {
+                  "type": "string",
+                  "example": "GET, HEAD"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/leituras": {
+      "post": {
+        "operationId": "lerDocumento",
+        "security": [
+          {
+            "chaveProduto": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Conta-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "modelo": {
+                    "type": "string",
+                    "enum": [
+                      "NFCE",
+                      "NFE"
+                    ]
+                  },
+                  "qrUrl": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "chaveAcesso": {
+                    "type": "string",
+                    "description": "44 caracteres; letras minúsculas são aceitas e tratadas como a mesma chave em maiúsculas.",
+                    "pattern": "^[0-9A-Za-z]{44}$"
+                  }
+                },
+                "required": [
+                  "modelo"
+                ],
+                "oneOf": [
+                  {
+                    "required": [
+                      "qrUrl"
+                    ],
+                    "not": {
+                      "required": [
+                        "chaveAcesso"
+                      ]
+                    }
+                  },
+                  {
+                    "required": [
+                      "chaveAcesso"
+                    ],
+                    "not": {
+                      "required": [
+                        "qrUrl"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "modelo": {
+                    "type": "string",
+                    "enum": [
+                      "NFCE",
+                      "NFE"
+                    ]
+                  },
+                  "arquivo": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "confirmouEnvioIa": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "modelo",
+                  "arquivo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nota lida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotaLida"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Entrada inválida ou bloqueio funcional",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chave ausente, inválida ou revogada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno genérico",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Método HTTP fora do contrato deste endereço; o cabeçalho Allow lista os aceitos",
+            "headers": {
+              "Allow": {
+                "description": "Métodos aceitos",
+                "schema": {
+                  "type": "string",
+                  "example": "POST"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "chaveProduto": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "32 bytes aleatórios; somente hash SHA-256 persistido. X-Conta-Id é UUID opaco do usuário no produto."
+      }
+    },
+    "schemas": {
+      "NotaLida": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "emitente": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cnpj": {
+                "type": "string",
+                "pattern": "^[0-9A-Z]{12}[0-9]{2}$"
+              },
+              "nome": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "uf": {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              }
+            },
+            "required": [
+              "cnpj",
+              "nome",
+              "uf"
+            ]
+          },
+          "chaveAcesso": {
+            "type": "string",
+            "pattern": "^[0-9A-Z]{44}$"
+          },
+          "numero": {
+            "type": "string",
+            "minLength": 1
+          },
+          "serie": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "totalPago": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$"
+          },
+          "descontoGeral": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$"
+          },
+          "acrescimos": {
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$"
+          },
+          "itens": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "nome": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "quantidade": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d+)?$"
+                },
+                "valorFinal": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d+)?$"
+                },
+                "valorBruto": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d+)?$"
+                },
+                "desconto": {
+                  "type": "string",
+                  "pattern": "^\\d+(\\.\\d+)?$"
+                },
+                "unidade": {
+                  "type": "string"
+                },
+                "codigo": {
+                  "type": "string"
+                },
+                "ean": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "nome",
+                "quantidade",
+                "valorFinal"
+              ]
+            }
+          },
+          "origem": {
+            "type": "string",
+            "enum": [
+              "NFCE_QR",
+              "NFE_PDF",
+              "NFE_FOTO",
+              "NFE_XML"
+            ]
+          },
+          "metodo": {
+            "type": "string",
+            "enum": [
+              "LEITOR_UF",
+              "IA",
+              "XML"
+            ]
+          },
+          "doCache": {
+            "type": "boolean"
+          },
+          "uf": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "leiaute": {
+            "type": "string",
+            "minLength": 1
+          },
+          "avisos": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        },
+        "required": [
+          "emitente",
+          "chaveAcesso",
+          "numero",
+          "serie",
+          "dataEmissao",
+          "totalPago",
+          "descontoGeral",
+          "acrescimos",
+          "itens",
+          "origem",
+          "metodo",
+          "doCache",
+          "uf",
+          "leiaute",
+          "avisos"
+        ]
+      },
+      "Erro": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "BLOQUEIO",
+              "AVISO"
+            ]
+          },
+          "codigo": {
+            "type": "string",
+            "enum": [
+              "DOCUMENTO_INVALIDO",
+              "CONFIRMACAO_ENVIO_IA_AUSENTE",
+              "CHAVE_EXIGE_QR",
+              "PORTAL_NAO_PERMITIDO",
+              "LEITURA_IMPOSSIVEL",
+              "IA_INDISPONIVEL",
+              "LIMITE_IA_ATINGIDO",
+              "LIMITE_SIMULTANEAS",
+              "CHAVE_INVALIDA",
+              "RECURSO_INEXISTENTE",
+              "METODO_NAO_PERMITIDO",
+              "ERRO_INTERNO"
+            ]
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "comoResolver": {
+            "type": "string"
+          },
+          "itens": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "tipo",
+          "codigo",
+          "titulo",
+          "motivo",
+          "comoResolver",
+          "itens"
+        ]
+      }
+    }
+  }
+}
