@@ -1,0 +1,9 @@
+# Segredos e dependências de qualquer serviço
+.env
+.env.*
+!.env.example
+node_modules/
+*.log
+__pycache__/
+.venv/
+venv/
