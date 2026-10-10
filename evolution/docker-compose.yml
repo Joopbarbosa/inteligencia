@@ -1,0 +1,70 @@
+# evolution: serviço compartilhado de WhatsApp (não oficial) para os produtos da pasta inteligencia.
+# Motor: Evolution API, versão fixada em .env. (A Evolution Go foi descartada por ora, decisão do Gestor em 08/10/2026.)
+# Nada aqui é específico de um produto: cada produto cria a sua própria instância.
+# Rede externa (cada produto entra nela): docker network create evolution-rede
+# Nenhuma porta é publicada no host; para teste local use: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+name: evolution
+
+services:
+  evolution-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${EVOLUTION_DB_USUARIO}
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_SENHA}
+      POSTGRES_DB: evolution_api
+    volumes:
+      - evolution-dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EVOLUTION_DB_USUARIO} -d evolution_api"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - interna
+    restart: unless-stopped
+
+  evolution-api:
+    image: ${EVOLUTION_API_IMAGEM}
+    depends_on:
+      evolution-db:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: "8080"
+      SERVER_URL: ${EVOLUTION_API_URL_INTERNA}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_CHAVE_GLOBAL}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${EVOLUTION_DB_USUARIO}:${EVOLUTION_DB_SENHA}@evolution-db:5432/evolution_api?schema=evolution_api
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_api
+      # Armazenamento de conteúdo desligado (INV-OL-6 e INV-OL-7 da Olivia): só a instância fica guardada.
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_LABELS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      DATABASE_SAVE_IS_ON_WHATSAPP: "false"
+      DATABASE_DELETE_MESSAGE: "true"
+      CACHE_REDIS_ENABLED: "false"
+      CACHE_LOCAL_ENABLED: "true"
+      S3_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      DEL_INSTANCE: "false"
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      LOG_LEVEL: ERROR,WARN,INFO
+      LOG_BAILEYS: error
+      CORS_ORIGIN: "*"
+    mem_limit: 768m
+    networks:
+      - interna
+      - evolution-rede
+    restart: unless-stopped
+
+volumes:
+  evolution-dados:
+
+networks:
+  interna:
+  evolution-rede:
+    external: true
