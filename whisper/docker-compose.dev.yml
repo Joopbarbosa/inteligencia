@@ -1,0 +1,5 @@
+# Só para teste local: publica a porta da API APENAS em 127.0.0.1 (nunca em produção).
+services:
+  whisper-api:
+    ports:
+      - "127.0.0.1:8083:8000"

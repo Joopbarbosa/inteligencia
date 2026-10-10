@@ -1,0 +1,13 @@
+{
+  "name": "pense-stitch-mcp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@google/stitch-sdk": "0.3.5",
+    "@modelcontextprotocol/sdk": "1.30.1",
+    "dotenv": "18.0.4"
+  }
+}

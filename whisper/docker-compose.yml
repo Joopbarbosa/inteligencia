@@ -1,0 +1,40 @@
+# whisper: serviço compartilhado de transcrição de áudio (fala para texto), local e em CPU, para os produtos da pasta inteligencia.
+# Motor: faster-whisper, atrás de uma API compatível com a da OpenAI (/v1/audio/transcriptions). Nada aqui é específico de um produto.
+# Versão da imagem fixada em .env (nunca latest). Nenhuma porta é publicada no host; para teste local use docker-compose.dev.yml.
+# Rede externa (cada produto entra nela): docker network create whisper-rede
+name: whisper
+
+services:
+  whisper-api:
+    image: ${WHISPER_IMAGEM}
+    environment:
+      # Chave de acesso do serviço: cada produto pede a sua cópia ao dono do serviço; sem ela a API recusa.
+      API_KEY: ${WHISPER_API_CHAVE}
+      # Modelo carregado sob demanda e descarregado depois de um tempo parado, para devolver a memória (a máquina é compartilhada).
+      STT_MODEL_TTL: ${WHISPER_MODELO_TTL}
+      WHISPER__COMPUTE_TYPE: int8
+      WHISPER__INFERENCE_DEVICE: cpu
+      WHISPER__CPU_THREADS: ${WHISPER_THREADS}
+      LOG_LEVEL: info
+    volumes:
+      # Pesos dos modelos (baixados uma vez).
+      - whisper-modelos:/home/ubuntu/.cache/huggingface/hub
+    mem_limit: ${WHISPER_MEMORIA}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H \"Authorization: Bearer $$API_KEY\" http://127.0.0.1:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - interna
+      - whisper-rede
+    restart: unless-stopped
+
+volumes:
+  whisper-modelos:
+
+networks:
+  interna:
+  whisper-rede:
+    external: true
