@@ -1,0 +1,495 @@
+"""Work package management tools.
+
+Vendoring seletivo (ver docs/estrutura/ARCHITECTURE.md §3): mantidas só as
+tools usadas pelas 4 prioridades de João. `get_work_package` foi adicionada
+por nós (não existe no projeto original como tool) para suportar os passos
+de validação "confirmar via GET" do docs/BACKLOG_V0.1.md.
+
+V1.2 (docs/V1.2/): `delete_work_package` é nosso, novo (RN-NOVA-2 — bloqueia
+se houver filhos, ANALYSIS/DECISOES_V1.2.md); `parent_id` (create/update) e
+`project_id` (update, com RN-NOVA-3 de limpeza de version_id) conectam código
+que já existia em client.py mas nunca tinha sido exposto pela tool.
+"""
+
+from typing import Optional
+from pydantic import BaseModel, Field
+
+from src.server import mcp, get_client
+from src.custom_fields import load_map, resolve_custom_fields
+from src.utils.formatting import (
+    format_work_package_detail,
+    format_success,
+    format_error,
+)
+
+
+# Pydantic models for type-safe input validation
+class CreateWorkPackageInput(BaseModel):
+    """Input model for creating work packages with validation."""
+
+    project_id: int = Field(..., description="Project ID where work package will be created", gt=0)
+    subject: str = Field(..., description="Work package title/subject", min_length=1, max_length=255)
+    type_id: int = Field(..., description="Type ID (use list_types to see available types)", gt=0)
+    description: Optional[str] = Field(None, description="Detailed description in raw format")
+    start_date: Optional[str] = Field(None, description="Start date in ISO format (YYYY-MM-DD)")
+    due_date: Optional[str] = Field(None, description="Due date in ISO format (YYYY-MM-DD)")
+    assignee_id: Optional[int] = Field(None, description="Assignee user ID", gt=0)
+    status_id: Optional[int] = Field(None, description="Status ID", gt=0)
+    priority_id: Optional[int] = Field(None, description="Priority ID", gt=0)
+    version_id: Optional[int] = Field(None, description="Version/milestone ID to assign work package to", gt=0)
+    sistema: Optional[str] = Field(None, description="Custom field 'Sistema' (ex: BackEnd, FrontEnd, Back/Front, Processual, Banco de Dados, Mobile) — ver config/custom_fields_map.yaml para os valores atuais")
+    parent_id: Optional[int] = Field(None, description="ID da tarefa pai — cria esta tarefa já como filha dela (hierarquia nativa do OpenProject)", gt=0)
+
+
+class ListWorkPackagesInput(BaseModel):
+    """Input model for listing/filtering work packages (P6)."""
+
+    project_id: Optional[int] = Field(None, description="Filtra por projeto", gt=0)
+    version_id: Optional[int] = Field(None, description="Filtra por versão/milestone (ex: 'todas as tarefas da versão X')", gt=0)
+    status_id: Optional[int] = Field(None, description="Filtra por status", gt=0)
+    type_id: Optional[int] = Field(None, description="Filtra por tipo", gt=0)
+    assignee_id: Optional[int] = Field(None, description="Filtra por responsável", gt=0)
+
+
+def build_work_package_filters(
+    *,
+    version_id: Optional[int] = None,
+    status_id: Optional[int] = None,
+    type_id: Optional[int] = None,
+    assignee_id: Optional[int] = None,
+) -> list:
+    """Monta a lista de filtros no formato da API v3 (`filters=[{...}]`).
+
+    Função pura (sem I/O) para ser testável sem mockar a API — ver
+    tests/test_work_packages_filters.py.
+    """
+    filters = []
+    if version_id is not None:
+        filters.append({"version": {"operator": "=", "values": [str(version_id)]}})
+    if status_id is not None:
+        filters.append({"status": {"operator": "=", "values": [str(status_id)]}})
+    if type_id is not None:
+        filters.append({"type": {"operator": "=", "values": [str(type_id)]}})
+    if assignee_id is not None:
+        filters.append({"assignee": {"operator": "=", "values": [str(assignee_id)]}})
+    return filters
+
+
+class UpdateWorkPackageInput(BaseModel):
+    """Input model for updating work packages with validation."""
+
+    work_package_id: int = Field(..., description="Work package ID to update", gt=0)
+    subject: Optional[str] = Field(None, description="New subject/title", min_length=1, max_length=255)
+    description: Optional[str] = Field(None, description="New description")
+    type_id: Optional[int] = Field(None, description="New type ID", gt=0)
+    status_id: Optional[int] = Field(None, description="New status ID", gt=0)
+    priority_id: Optional[int] = Field(None, description="New priority ID", gt=0)
+    assignee_id: Optional[int] = Field(None, description="New assignee user ID", gt=0)
+    start_date: Optional[str] = Field(None, description="New start date (YYYY-MM-DD)")
+    due_date: Optional[str] = Field(None, description="New due date (YYYY-MM-DD)")
+    percentage_done: Optional[int] = Field(None, description="Progress percentage (0-100)", ge=0, le=100)
+    version_id: Optional[int] = Field(None, description="Version/milestone ID to assign work package to", gt=0)
+    sistema: Optional[str] = Field(None, description="Custom field 'Sistema' (ex: BackEnd, FrontEnd, Back/Front, Processual, Banco de Dados, Mobile) — ver config/custom_fields_map.yaml para os valores atuais")
+    parent_id: Optional[int] = Field(None, description="Nova tarefa pai — envie null explicitamente para remover o pai atual. Ausente = não mexe no pai.", gt=0)
+    project_id: Optional[int] = Field(None, description="Move a tarefa para outro projeto (hierarquia nativa) — RN-NOVA-3: se a tarefa tiver version_id do projeto de origem, ele é limpo automaticamente", gt=0)
+
+
+class DeleteWorkPackageInput(BaseModel):
+    """Input model for deleting a work package (V1.2, #406)."""
+
+    work_package_id: int = Field(..., description="Work package ID to delete", gt=0)
+
+
+@mcp.tool
+async def get_work_package(work_package_id: int) -> str:
+    """Get a single work package (task) by ID.
+
+    Args:
+        work_package_id: ID of the work package to retrieve
+
+    Returns:
+        Formatted work package details
+    """
+    try:
+        client = get_client()
+        wp = await client.get_work_package(work_package_id)
+        return format_work_package_detail(wp)
+    except Exception as e:
+        return format_error(f"Failed to get work package #{work_package_id}: {str(e)}")
+
+
+@mcp.tool
+async def list_work_packages(input: ListWorkPackagesInput) -> str:
+    """List/filter work packages (tasks) - Prioridade 6 (ex: "todas as tarefas da versão X").
+
+    Args:
+        input: Filtros opcionais (project_id, version_id, status_id, type_id, assignee_id).
+            Sem nenhum filtro, lista as primeiras tarefas da instância inteira (cuidado: pode ser muita coisa).
+
+    Returns:
+        Lista formatada de tarefas encontradas (id, subject, tipo, status, prioridade)
+
+    Example:
+        Para achar todas as tarefas da versão 24:
+        {"version_id": 24}
+    """
+    try:
+        client = get_client()
+
+        filters = build_work_package_filters(
+            version_id=input.version_id,
+            status_id=input.status_id,
+            type_id=input.type_id,
+            assignee_id=input.assignee_id,
+        )
+
+        result = await client.list_work_packages(project_id=input.project_id, filters=filters or None)
+        elements = result.get("_embedded", {}).get("elements", [])
+
+        if not elements:
+            return "Nenhuma tarefa encontrada para os filtros informados."
+
+        total = result.get("total", len(elements))
+        text = f"✅ **{len(elements)} tarefa(s)** encontrada(s)"
+        if total > len(elements):
+            text += f" (total no filtro: {total} — só a primeira página é exibida)"
+        text += ":\n\n"
+
+        for wp in elements:
+            # Achado (validação real do P6): a coleção de /work_packages NÃO traz
+            # _embedded para cada elemento (diferente do GET individual) — tipo,
+            # status e prioridade só vêm em _links.{campo}.title.
+            links = wp.get("_links", {})
+            text += f"- **#{wp.get('id')}** {wp.get('subject', 'Sem título')}\n"
+            text += (
+                f"  Tipo: {links.get('type', {}).get('title', '—')}"
+                f" | Status: {links.get('status', {}).get('title', '—')}"
+                f" | Prioridade: {links.get('priority', {}).get('title', '—')}\n"
+            )
+
+        return text
+
+    except Exception as e:
+        return format_error(f"Failed to list work packages: {str(e)}")
+
+
+@mcp.tool
+async def create_work_package(input: CreateWorkPackageInput) -> str:
+    """Create a new work package (task) - Prioridade 1 (criar com custom fields corretos).
+
+    Args:
+        input: Work package data including project_id, subject, type_id, and optional fields
+
+    Returns:
+        Success message with created work package ID and details
+
+    Example:
+        To create a bug in project 5:
+        {
+            "project_id": 5,
+            "subject": "Fix login issue",
+            "type_id": 1,
+            "description": "Users cannot login with valid credentials",
+            "priority_id": 3,
+            "assignee_id": 7,
+            "due_date": "2025-01-15"
+        }
+    """
+    try:
+        client = get_client()
+
+        # Build data dict for API
+        data = {
+            "project": input.project_id,
+            "subject": input.subject,
+            "type": input.type_id,
+        }
+
+        # Add optional fields
+        if input.description:
+            data["description"] = input.description
+        if input.priority_id:
+            data["priority_id"] = input.priority_id
+        if input.assignee_id:
+            data["assignee_id"] = input.assignee_id
+        if input.version_id:
+            data["version_id"] = input.version_id
+        if input.status_id:
+            data["status_id"] = input.status_id
+        if input.sistema:
+            mapa = load_map()
+            data["custom_fields"] = resolve_custom_fields(mapa, sistema=input.sistema)
+        if input.parent_id:
+            data["parent_id"] = input.parent_id
+
+        # Add date fields (use camelCase for API)
+        if input.start_date:
+            data["startDate"] = input.start_date
+        if input.due_date:
+            data["dueDate"] = input.due_date
+
+        # Create work package
+        result = await client.create_work_package(data)
+
+        # Format success response
+        wp_id = result.get("id")
+        wp_subject = result.get("subject")
+
+        text = format_success(f"Work package #{wp_id} created successfully!\n\n")
+        text += f"**Subject**: {wp_subject}\n"
+
+        # Add embedded data
+        embedded = result.get("_embedded", {})
+        if "type" in embedded:
+            text += f"**Type**: {embedded['type'].get('name', 'Unknown')}\n"
+        if "status" in embedded:
+            text += f"**Status**: {embedded['status'].get('name', 'Unknown')}\n"
+        if "priority" in embedded:
+            text += f"**Priority**: {embedded['priority'].get('name', 'Unknown')}\n"
+        if "assignee" in embedded:
+            text += f"**Assignee**: {embedded['assignee'].get('name', 'Unassigned')}\n"
+
+        if result.get('startDate'):
+            text += f"**Start Date**: {result['startDate']}\n"
+        if result.get('dueDate'):
+            text += f"**Due Date**: {result['dueDate']}\n"
+
+        return text
+
+    except Exception as e:
+        return format_error(f"Failed to create work package: {str(e)}")
+
+
+@mcp.tool
+async def update_work_package(input: UpdateWorkPackageInput) -> str:
+    """Update an existing work package (task) - Prioridades 2 (mudar status) e 3 (editar).
+
+    Args:
+        input: Work package update data including work_package_id and fields to update
+
+    Returns:
+        Success message with updated work package details
+
+    Example:
+        To update work package #123 status and assignee:
+        {
+            "work_package_id": 123,
+            "status_id": 5,
+            "assignee_id": 7,
+            "percentage_done": 50,
+            "due_date": "2025-01-20"
+        }
+    """
+    try:
+        client = get_client()
+
+        # Build data dict for API (only include provided fields)
+        data = {}
+
+        if input.subject is not None:
+            data["subject"] = input.subject
+        if input.description is not None:
+            data["description"] = input.description
+        if input.type_id is not None:
+            data["type_id"] = input.type_id
+        if input.status_id is not None:
+            data["status_id"] = input.status_id
+        if input.priority_id is not None:
+            data["priority_id"] = input.priority_id
+        if input.assignee_id is not None:
+            data["assignee_id"] = input.assignee_id
+        if input.percentage_done is not None:
+            data["percentage_done"] = input.percentage_done
+        if input.version_id is not None:
+            data["version_id"] = input.version_id
+        if input.sistema is not None:
+            mapa = load_map()
+            data["custom_fields"] = resolve_custom_fields(mapa, sistema=input.sistema)
+        if input.project_id is not None:
+            data["project_id"] = input.project_id
+        # parent_id é o único campo em que `None` é um valor válido e
+        # distinto de "não enviado" (None explícito = remover o pai atual,
+        # ver client.py::update_work_package). Por isso usa model_fields_set
+        # em vez de "is not None", diferente do padrão dos outros campos acima.
+        if "parent_id" in input.model_fields_set:
+            data["parent_id"] = input.parent_id
+
+        # Add date fields (use camelCase for API)
+        if input.start_date is not None:
+            data["startDate"] = input.start_date
+        if input.due_date is not None:
+            data["dueDate"] = input.due_date
+
+        if not data:
+            return format_error("No fields provided to update")
+
+        # Update work package
+        result = await client.update_work_package(input.work_package_id, data)
+
+        # Format success response
+        wp_id = result.get("id")
+        wp_subject = result.get("subject")
+
+        text = format_success(f"Work package #{wp_id} updated successfully!\n\n")
+        text += f"**Subject**: {wp_subject}\n"
+
+        # Add embedded data
+        embedded = result.get("_embedded", {})
+        if "type" in embedded:
+            text += f"**Type**: {embedded['type'].get('name', 'Unknown')}\n"
+        if "status" in embedded:
+            text += f"**Status**: {embedded['status'].get('name', 'Unknown')}\n"
+        if "priority" in embedded:
+            text += f"**Priority**: {embedded['priority'].get('name', 'Unknown')}\n"
+        if "assignee" in embedded:
+            text += f"**Assignee**: {embedded['assignee'].get('name', 'Unassigned')}\n"
+        if "project" in embedded:
+            text += f"**Project**: {embedded['project'].get('name', 'Unknown')}\n"
+
+        if result.get('startDate'):
+            text += f"**Start Date**: {result['startDate']}\n"
+        if result.get('dueDate'):
+            text += f"**Due Date**: {result['dueDate']}\n"
+        if 'percentageDone' in result:
+            text += f"**Progress**: {result['percentageDone']}%\n"
+
+        return text
+
+    except Exception as e:
+        return format_error(f"Failed to update work package: {str(e)}")
+
+
+@mcp.tool
+async def delete_work_package(input: DeleteWorkPackageInput) -> str:
+    """Delete a work package (task) - V1.2 (#406).
+
+    RN-NOVA-2 (DECISOES_V1.2.md): recusa a exclusão se a tarefa tiver filhos
+    (sub-tarefas via parent_id) — sem exclusão em cascata. Usuário precisa
+    excluir ou reatribuir os filhos primeiro (update_work_package com
+    parent_id apontando pra outro pai, ou null).
+
+    Args:
+        input: work_package_id a excluir
+
+    Returns:
+        Success message, ou erro de BLOQUEIO listando os filhos encontrados
+    """
+    try:
+        client = get_client()
+
+        # RN-NOVA-2: checar filhos antes de excluir (BLOQUEIO, sem cascata).
+        wp = await client.get_work_package(input.work_package_id)
+        children_links = wp.get("_links", {}).get("children", [])
+        if children_links:
+            child_ids = []
+            for link in children_links:
+                href = link.get("href", "")
+                child_ids.append(href.rsplit("/", 1)[-1] if href else "?")
+            return format_error(
+                f"BLOQUEIO: a tarefa #{input.work_package_id} tem "
+                f"{len(children_links)} filho(s) (#{', #'.join(child_ids)}) — "
+                "exclua ou reatribua os filhos primeiro (update_work_package "
+                "com parent_id apontando pra outro pai, ou null)."
+            )
+
+        await client.delete_work_package(input.work_package_id)
+
+        return format_success(f"Work package #{input.work_package_id} deleted successfully!")
+
+    except Exception as e:
+        return format_error(f"Failed to delete work package #{input.work_package_id}: {str(e)}")
+
+
+@mcp.tool
+async def list_types(project_id: Optional[int] = None) -> str:
+    """List available work package types (Bug, Task, Feature, etc.).
+
+    Args:
+        project_id: Optional project ID to filter types by project
+
+    Returns:
+        List of work package types with IDs
+    """
+    try:
+        client = get_client()
+
+        result = await client.get_types(project_id)
+        types = result.get("_embedded", {}).get("elements", [])
+
+        if not types:
+            return "No work package types found."
+
+        text = "✅ **Available Work Package Types:**\n\n"
+        for type_item in types:
+            text += f"- **{type_item.get('name', 'Unnamed')}** (ID: {type_item.get('id', 'N/A')})\n"
+            if type_item.get("isDefault"):
+                text += "  ✓ Default type\n"
+            if type_item.get("isMilestone"):
+                text += "  ✓ Milestone\n"
+
+        return text
+
+    except Exception as e:
+        return format_error(f"Failed to list work package types: {str(e)}")
+
+
+@mcp.tool
+async def list_statuses() -> str:
+    """List available work package statuses (New, In Progress, Closed, etc.).
+
+    Returns:
+        List of work package statuses with IDs and properties
+    """
+    try:
+        client = get_client()
+
+        result = await client.get_statuses()
+        statuses = result.get("_embedded", {}).get("elements", [])
+
+        if not statuses:
+            return "No statuses found."
+
+        text = "✅ **Available Work Package Statuses:**\n\n"
+        for status in statuses:
+            text += f"- **{status.get('name', 'Unnamed')}** (ID: {status.get('id', 'N/A')})\n"
+            text += f"  Position: {status.get('position', 'N/A')}\n"
+            if status.get("isDefault"):
+                text += "  ✓ Default status\n"
+            if status.get("isClosed"):
+                text += "  ✓ Closed status\n"
+
+        return text
+
+    except Exception as e:
+        return format_error(f"Failed to list work package statuses: {str(e)}")
+
+
+@mcp.tool
+async def list_priorities() -> str:
+    """List available work package priorities (Low, Normal, High, Immediate).
+
+    Returns:
+        List of work package priorities with IDs
+    """
+    try:
+        client = get_client()
+
+        result = await client.get_priorities()
+        priorities = result.get("_embedded", {}).get("elements", [])
+
+        if not priorities:
+            return "No priorities found."
+
+        text = "✅ **Available Work Package Priorities:**\n\n"
+        for priority in priorities:
+            text += f"- **{priority.get('name', 'Unnamed')}** (ID: {priority.get('id', 'N/A')})\n"
+            text += f"  Position: {priority.get('position', 'N/A')}\n"
+            if priority.get("isDefault"):
+                text += "  ✓ Default priority\n"
+            if priority.get("isActive"):
+                text += "  ✓ Active\n"
+
+        return text
+
+    except Exception as e:
+        return format_error(f"Failed to list work package priorities: {str(e)}")
